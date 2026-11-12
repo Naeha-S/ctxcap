@@ -5,21 +5,21 @@ import process from 'node:process';
 import { loadConfig } from './config.js';
 import { collectFiles } from './glob.js';
 import { countTokens } from './tokenize.js';
-import { loadBaseline, saveBaseline } from './baseline.js';
+import { loadBaseline, saveBaseline, BASELINE_FILE } from './baseline.js';
 import { buildReport, renderText, renderSarif, exitCodeFor } from './report.js';
 import { suggest } from './suggest.js';
 
-const HELP = `ctxlint — token budget linter for context files
+const HELP = `ctxcap — token budget linter for context files
 
-Usage: ctxlint [options]
+Usage: ctxcap [options]
 
   --json              machine-readable report on stdout
   --sarif             SARIF 2.1.0 on stdout
   --suggest           include compression suggestions
   --fail-on <mode>    increase | budget | never  (default: never)
   --baseline <ref>    read baseline from a git ref (CI uses merge base)
-  --update-baseline   write ctxlint-baseline.json and exit
-  --config <path>     config file (default: .ctxlint.json)
+  --update-baseline   write ${BASELINE_FILE} and exit
+  --config <path>     config file (default: .ctxcap.json)
   --root <path>       working directory (default: .)
   --help, --version
 
@@ -44,7 +44,7 @@ function parseArgs(argv) {
     else if (a === '--baseline') o.baseline = need(i++, a);
     else if (a === '--config') o.config = need(i++, a);
     else if (a === '--root') o.root = need(i++, a);
-    else throw new Error(`unknown argument: ${a}. Run ctxlint --help`);
+    else throw new Error(`unknown argument: ${a}. Run ctxcap --help`);
   }
   if (o.failOn && !['increase', 'budget', 'never'].includes(o.failOn)) {
     throw new Error(`--fail-on must be increase | budget | never, got "${o.failOn}"`);
@@ -93,4 +93,4 @@ async function main() {
 
 main()
   .then((code) => process.exit(code))
-  .catch((err) => { console.error(`ctxlint: ${err.message}`); process.exit(2); });
+  .catch((err) => { console.error(`ctxcap: ${err.message}`); process.exit(2); });

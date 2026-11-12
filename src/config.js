@@ -22,6 +22,8 @@ export const DEFAULTS = {
   failOn: null
 };
 
+export const CONFIG_FILES = ['.ctxcap.json', '.ctxlint.json', '.tokenlint.json'];
+
 export function assertSafePatterns(list, field) {
   if (!Array.isArray(list) || list.some((x) => typeof x !== 'string')) {
     throw new Error(`"${field}" must be an array of glob strings`);
@@ -35,17 +37,15 @@ export function assertSafePatterns(list, field) {
 }
 
 export async function loadConfig(root, configPath) {
-  let file = path.join(root, configPath ?? '.ctxlint.json');
+  let file = path.join(root, configPath ?? CONFIG_FILES[0]);
   if (!configPath) {
-    try {
-      await readFile(file, 'utf8');
-    } catch {
-      const legacy = path.join(root, '.tokenlint.json');
+    for (const name of CONFIG_FILES) {
       try {
-        await readFile(legacy, 'utf8');
-        file = legacy;
+        await readFile(path.join(root, name), 'utf8');
+        file = path.join(root, name);
+        break;
       } catch {
-        file = path.join(root, '.ctxlint.json');
+        // try next
       }
     }
   }

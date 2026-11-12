@@ -1,12 +1,12 @@
-# ctxlint
+# ctxcap
 
 > Token budget linter for prompt and context files. Agent-first: JSON out, zero config.
 
 ## Install
-npx -y ctxlint --json
+npx -y ctxcap --json
 
 ## MCP
-npx -y -p ctxlint@latest ctxlint-mcp
+npx -y -p ctxcap@latest ctxcap-mcp
 
 ## Docs
 - README.md: usage, config, exit codes

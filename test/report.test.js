@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { buildReport, exitCodeFor, renderText, renderSarif } from '../src/report.js';
+import { buildReport, exitCodeFor, renderText, renderSarif, TOOL_NAME } from '../src/report.js';
 
 const config = { budgets: {} };
 
@@ -50,15 +50,15 @@ test('renderText includes column headers and baseline notice when missing', () =
   const text = renderText(r);
   assert.ok(text.startsWith('TOKENS\tDELTA\tFILE'));
   assert.ok(text.includes('no baseline found — delta is the full current size'));
-  assert.ok(text.includes('run: ctxlint --update-baseline'));
+  assert.ok(text.includes(`run: ${TOOL_NAME} --update-baseline`));
 });
 
-test('renderSarif driver name is ctxlint', () => {
+test('renderSarif driver name matches TOOL_NAME', () => {
   const r = buildReport({
     files: [{ path: 'a.md', tokens: 50 }],
     baseline: { 'a.md': 50 },
     config: { budgets: { 'a.md': 40 } }
   });
   const sarif = renderSarif(r);
-  assert.equal(sarif.runs[0].tool.driver.name, 'ctxlint');
+  assert.equal(sarif.runs[0].tool.driver.name, TOOL_NAME);
 });

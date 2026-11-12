@@ -4,34 +4,32 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 
 const exec = promisify(execFile);
-export const BASELINE_FILE = 'ctxlint-baseline.json';
-export const LEGACY_BASELINE_FILE = 'tokenlint-baseline.json';
+export const BASELINE_FILE = 'ctxcap-baseline.json';
+export const LEGACY_BASELINE_FILES = ['ctxlint-baseline.json', 'tokenlint-baseline.json'];
 
 export async function loadBaseline(root, ref) {
+  const filesToTry = [BASELINE_FILE, ...LEGACY_BASELINE_FILES];
   if (ref) {
-    try {
-      const { stdout } = await exec('git', ['show', `${ref}:${BASELINE_FILE}`], { cwd: root });
-      return { counts: JSON.parse(stdout), found: true };
-    } catch {
+    for (const file of filesToTry) {
       try {
-        const { stdout } = await exec('git', ['show', `${ref}:${LEGACY_BASELINE_FILE}`], { cwd: root });
+        const { stdout } = await exec('git', ['show', `${ref}:${file}`], { cwd: root });
         return { counts: JSON.parse(stdout), found: true };
       } catch {
-        return { counts: {}, found: false };
+        // try next
       }
     }
+    return { counts: {}, found: false };
   }
-  try {
-    const raw = await readFile(path.join(root, BASELINE_FILE), 'utf8');
-    return { counts: JSON.parse(raw), found: true };
-  } catch {
+
+  for (const file of filesToTry) {
     try {
-      const raw = await readFile(path.join(root, LEGACY_BASELINE_FILE), 'utf8');
+      const raw = await readFile(path.join(root, file), 'utf8');
       return { counts: JSON.parse(raw), found: true };
     } catch {
-      return { counts: {}, found: false };
+      // try next
     }
   }
+  return { counts: {}, found: false };
 }
 
 export async function saveBaseline(root, counts) {

@@ -1,9 +1,9 @@
-# ctxlint
+# ctxcap
 
 Token budget linter for prompt and context files. Built for agents: one command, JSON out, zero config.
 
 ```bash
-npx -y ctxlint --json
+npx -y ctxcap --json
 ```
 
 Two dependencies (`fast-glob`, `gpt-tokenizer`), both audited, neither phones home. Runs offline. No API key. No telemetry.
@@ -15,7 +15,7 @@ Two dependencies (`fast-glob`, `gpt-tokenizer`), both audited, neither phones ho
 ## How this differs from `tokenlint`
 
 `tokenlint` hooks your editor and reminds you per turn about wasteful
-habits. `ctxlint` gates the repo: it measures context files against a
+habits. `ctxcap` gates the repo: it measures context files against a
 committed baseline, reports the delta on the PR, and fails only when you
 ask it to. Different layer — CI and review, not keystrokes.
 
@@ -25,8 +25,8 @@ inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
 ## Install
 
 ```bash
-npm i -D ctxlint
-npx ctxlint --update-baseline
+npm i -D ctxcap
+npx ctxcap --update-baseline
 ```
 
 ## CLI
@@ -37,14 +37,14 @@ npx ctxlint --update-baseline
 | `--sarif` | SARIF 2.1.0 |
 | `--suggest` | compression suggestions |
 | `--fail-on increase\|budget\|never` | default: never fail |
-| `--baseline <ref>` | read `ctxlint-baseline.json` from a git ref |
-| `--update-baseline` | write `ctxlint-baseline.json` |
+| `--baseline <ref>` | read `ctxcap-baseline.json` from a git ref |
+| `--update-baseline` | write `ctxcap-baseline.json` |
 
 Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
 
 ## Config
 
-`.ctxlint.json`, all optional:
+`.ctxcap.json`, all optional:
 
 ```json
 {
@@ -65,7 +65,7 @@ permissions:
 steps:
   - uses: actions/checkout@v4
     with: { fetch-depth: 0 }
-  - uses: Naeha-S/ctxlint@v0.1.0
+  - uses: Naeha-S/ctxcap@v0.1.0
     with: { fail-on: increase }
 ```
 
@@ -76,19 +76,19 @@ When the token can write: a sticky PR comment (one comment, updated in place) an
 
 ### Fork PRs
 
-With plain `pull_request`, fork PRs get a read-only token, so ctxlint degrades to annotations, the job summary
-and a downloadable `ctxlint` artifact (report + SARIF). For the full experience on forks (sticky comments and SARIF upload),
+With plain `pull_request`, fork PRs get a read-only token, so ctxcap degrades to annotations, the job summary
+and a downloadable `ctxcap` artifact (report + SARIF). For the full experience on forks (sticky comments and SARIF upload),
 use `pull_request_target` with `ref: ${{ github.event.pull_request.head.sha }}` and `fetch-depth: 0` as shown in [`examples/pull-request-target.yml`](examples/pull-request-target.yml).
-Safe because ctxlint executes only from `github.action_path` on the base branch and reads PR files strictly as data without executing repo scripts.
+Safe because ctxcap executes only from `github.action_path` on the base branch and reads PR files strictly as data without executing repo scripts.
 
 Code scanning requires GitHub Advanced Security on private repos; SARIF upload silently no-ops without it.
 
 ## MCP
 
-Run directly via `npx -y -p ctxlint@latest ctxlint-mcp` or configure in your client:
+Run directly via `npx -y -p ctxcap@latest ctxcap-mcp` or configure in your client:
 
 ```json
-{ "mcpServers": { "ctxlint": { "command": "npx", "args": ["-y", "-p", "ctxlint@latest", "ctxlint-mcp"] } } }
+{ "mcpServers": { "ctxcap": { "command": "npx", "args": ["-y", "-p", "ctxcap@latest", "ctxcap-mcp"] } } }
 ```
 
 Tools: `measure_context`, `trim_to_budget`.

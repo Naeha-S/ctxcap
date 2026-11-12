@@ -7,7 +7,7 @@ import { loadConfig } from '../src/config.js';
 import { collectFiles } from '../src/glob.js';
 import { countTokens } from '../src/tokenize.js';
 import { loadBaseline } from '../src/baseline.js';
-import { buildReport } from '../src/report.js';
+import { buildReport, TOOL_NAME } from '../src/report.js';
 import { suggest } from '../src/suggest.js';
 
 const PROTOCOL = '2024-11-05';
@@ -72,7 +72,7 @@ async function handle(msg) {
       return reply(id, {
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: 'ctxlint', version: '0.1.0' }
+        serverInfo: { name: TOOL_NAME, version: '0.1.0' }
       });
     }
     if (method === 'tools/list') return reply(id, { tools: TOOLS });

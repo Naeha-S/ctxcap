@@ -19,7 +19,7 @@ test('json output, exit 0 by default', async () => {
   const r = spawnSync('node', [CLI, '--json', '--root', dir], { encoding: 'utf8' });
   assert.equal(r.status, 0);
   const rep = JSON.parse(r.stdout);
-  assert.equal(rep.schema, 'ctxlint/v1');
+  assert.equal(rep.schema, 'ctxcap/v1');
   assert.equal(rep.files.length, 1);
 });
 

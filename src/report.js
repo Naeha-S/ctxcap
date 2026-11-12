@@ -1,5 +1,8 @@
 import { TOKENIZER_ID, APPROXIMATE } from './tokenize.js';
 
+export const TOOL_NAME = 'ctxcap';
+export const SCHEMA_ID = 'ctxcap/v1';
+
 export function buildReport({ files, baseline, baselineFound, config, suggestions = [] }) {
   const baseCounts = baseline && typeof baseline === 'object' && 'counts' in baseline ? baseline.counts : (baseline ?? {});
   const isBaselineFound = baselineFound !== undefined
@@ -25,7 +28,7 @@ export function buildReport({ files, baseline, baselineFound, config, suggestion
     (totalBudget !== null && total > totalBudget);
 
   return {
-    schema: 'ctxlint/v1',
+    schema: SCHEMA_ID,
     approximate: APPROXIMATE,
     tokenizer: TOKENIZER_ID,
     total,
@@ -56,7 +59,7 @@ export function renderText(report) {
   lines.push(`total ${report.total} (${sign(report.delta)})`);
   if (!report.baselineFound) {
     lines.push('no baseline found — delta is the full current size');
-    lines.push('run: ctxlint --update-baseline');
+    lines.push(`run: ${TOOL_NAME} --update-baseline`);
   }
   if (report.approximate) lines.push(`approximate count (${report.tokenizer})`);
   return lines.join('\n');
@@ -76,7 +79,7 @@ export function renderSarif(report) {
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
     version: '2.1.0',
     runs: [{
-      tool: { driver: { name: 'ctxlint', informationUri: 'https://github.com/Naeha-S/ctxlint', rules: [{
+      tool: { driver: { name: TOOL_NAME, informationUri: `https://github.com/Naeha-S/${TOOL_NAME}`, rules: [{
         id: 'over-budget',
         shortDescription: { text: 'Context file exceeds its token budget' }
       }] } },

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const MARKER = '<!-- ctxlint -->';
+const MARKER = '<!-- ctxcap -->';
 const token = process.env.GITHUB_TOKEN;
 const repo = process.env.GITHUB_REPOSITORY;
 const issue = process.env.PR_NUMBER;
@@ -11,7 +11,7 @@ if (!token || !repo || !issue) {
   process.exit(0);
 }
 
-const report = JSON.parse(await readFile(process.env.REPORT_PATH ?? 'ctxlint-report.json', 'utf8'));
+const report = JSON.parse(await readFile(process.env.REPORT_PATH ?? 'ctxcap-report.json', 'utf8'));
 const sign = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 const rows = report.files
@@ -24,7 +24,7 @@ const rows = report.files
 
 const body = [
   MARKER,
-  `**ctxlint** — ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
+  `**ctxcap** — ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
   '',
   rows.length
     ? ['| File | Tokens | Delta |', '| --- | --- | --- |', ...rows].join('\n')
@@ -38,7 +38,7 @@ const headers = {
   Authorization: `Bearer ${token}`,
   Accept: 'application/vnd.github+json',
   'Content-Type': 'application/json',
-  'User-Agent': 'ctxlint'
+  'User-Agent': 'ctxcap'
 };
 
 // Find-then-update so we never post more than one comment.

@@ -1,11 +1,11 @@
 {
-  "name": "ctxlint",
+  "name": "ctxcap",
   "version": "0.1.0",
   "description": "Token budget linter for prompt and context files. Built for agents.",
   "type": "module",
   "bin": {
-    "ctxlint": "src/index.js",
-    "ctxlint-mcp": "mcp/server.js"
+    "ctxcap": "src/index.js",
+    "ctxcap-mcp": "mcp/server.js"
   },
   "files": [
     "src",
@@ -31,15 +31,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Naeha-S/ctxlint.git"
+    "url": "git+https://github.com/Naeha-S/ctxcap.git"
   },
   "bugs": {
-    "url": "https://github.com/Naeha-S/ctxlint/issues"
+    "url": "https://github.com/Naeha-S/ctxcap/issues"
   },
-  "homepage": "https://github.com/Naeha-S/ctxlint#readme",
+  "homepage": "https://github.com/Naeha-S/ctxcap#readme",
   "author": "Naeha S",
   "keywords": [
-    "ctxlint",
+    "ctxcap",
     "token-budget",
     "context-engineering",
     "prompt-engineering",

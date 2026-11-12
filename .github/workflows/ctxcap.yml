@@ -1,11 +1,11 @@
-name: ctxlint
+name: ctxcap
 on: pull_request
 permissions:
   contents: read
   pull-requests: write
   security-events: write
 jobs:
-  ctxlint:
+  ctxcap:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

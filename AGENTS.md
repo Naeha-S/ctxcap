@@ -1,4 +1,4 @@
-# ctxlint
+# ctxcap
 
 Token budget linter for prompt and context files.
 
@@ -7,12 +7,12 @@ Run before and after editing any of: CLAUDE.md, AGENTS.md,
 .github/copilot-instructions.md, prompts/**, .cursor/rules/**
 
 ## How
-npx -y ctxlint --json
+npx -y ctxcap --json
 
 Parse stdout. Fields: files[].tokens, files[].delta, files[].budget, over.
 
 ## If over budget
-Run: npx -y ctxlint --json --suggest
+Run: npx -y ctxcap --json --suggest
 Compress the file with the largest delta first. Remove duplicated
 sections and stale instructions. Re-run until `over` is false.
 
@@ -20,7 +20,7 @@ sections and stale instructions. Re-run until `over` is false.
 0 clean, 1 breach, 2 error. Always pass --json; never rely on text output.
 
 ## MCP
-npx -y -p ctxlint@latest ctxlint-mcp
+npx -y -p ctxcap@latest ctxcap-mcp
 Tools: measure_context, trim_to_budget
 
 ## Constraints

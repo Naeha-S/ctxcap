@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Naeha-S/ctxlint/main/schema/report.schema.json",
-  "title": "ctxlint report",
+  "$id": "https://raw.githubusercontent.com/Naeha-S/ctxcap/main/schema/report.schema.json",
+  "title": "ctxcap report",
   "type": "object",
   "required": ["schema", "approximate", "tokenizer", "total", "delta", "over", "files"],
   "properties": {
-    "schema": { "const": "ctxlint/v1" },
+    "schema": { "const": "ctxcap/v1" },
     "approximate": { "type": "boolean" },
     "tokenizer": { "type": "string" },
     "total": { "type": "integer", "minimum": 0 },

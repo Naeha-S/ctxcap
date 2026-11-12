@@ -9,11 +9,11 @@ export function annotations(report) {
   const out = [];
   for (const f of report.files) {
     if (f.budget !== null && f.tokens > f.budget) {
-      out.push(`::warning file=${escProp(f.path)},line=1,title=ctxlint::${escData(`${f.tokens} tokens, budget ${f.budget} (${f.tokens - f.budget} over)`)}`);
+      out.push(`::warning file=${escProp(f.path)},line=1,title=ctxcap::${escData(`${f.tokens} tokens, budget ${f.budget} (${f.tokens - f.budget} over)`)}`);
     }
   }
   if (report.totalBudget !== null && report.total > report.totalBudget) {
-    out.push(`::warning title=ctxlint::${escData(`total ${report.total} tokens exceeds budget ${report.totalBudget}`)}`);
+    out.push(`::warning title=ctxcap::${escData(`total ${report.total} tokens exceeds budget ${report.totalBudget}`)}`);
   }
   return out;
 }
@@ -24,7 +24,7 @@ export function summary(report) {
     .filter((f) => f.delta !== 0 || (f.budget !== null && f.tokens > f.budget))
     .map((f) => `| \`${f.path.replace(/[`|]/g, '')}\` | ${f.tokens} | ${sign(f.delta)} |`);
   return [
-    `### ctxlint: ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
+    `### ctxcap: ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
     '',
     rows.length ? ['| File | Tokens | Delta |', '| --- | --- | --- |', ...rows].join('\n') : '_No token change._',
     ''
@@ -32,12 +32,12 @@ export function summary(report) {
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  const file = process.env.REPORT_PATH ?? 'ctxlint-report.json';
+  const file = process.env.REPORT_PATH ?? 'ctxcap-report.json';
   try {
     const report = JSON.parse(await readFile(file, 'utf8'));
     for (const line of annotations(report)) console.log(line);
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary(report));
   } catch (err) {
-    console.log(`::notice title=ctxlint::no report to annotate (${escData(err.message)})`);
+    console.log(`::notice title=ctxcap::no report to annotate (${escData(err.message)})`);
   }
 }

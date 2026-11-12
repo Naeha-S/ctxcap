@@ -1,4 +1,4 @@
-name: ctxlint
+name: ctxcap
 description: Fail CI when prompt and context files bloat the context window
 author: Naeha S
 branding:
@@ -12,12 +12,12 @@ inputs:
   config:
     description: Path to config file, relative to `path`
     required: false
-    default: .ctxlint.json
+    default: .ctxcap.json
   path:
     description: >-
       Directory containing the checked-out repo to lint. Use a subdirectory
       (e.g. `pr`) with pull_request_target so untrusted PR code never lands in
-      the workspace root. ctxlint only reads files; it never executes them.
+      the workspace root. ctxcap only reads files; it never executes them.
     required: false
     default: "."
   comment:
@@ -59,7 +59,7 @@ runs:
             echo "sarif_sha=${GITHUB_SHA}"
           fi
         } >> "$GITHUB_OUTPUT"
-        [ "$can_write" = "true" ] || echo "::notice title=ctxlint::Fork PR with a read-only token: using annotations and job summary only."
+        [ "$can_write" = "true" ] || echo "::notice title=ctxcap::Fork PR with a read-only token: using annotations and job summary only."
 
     - name: Resolve merge base
       id: base
@@ -96,25 +96,25 @@ runs:
         code=0
         node "${{ github.action_path }}/src/index.js" \
           --json --baseline "$BASE" --config "$CONFIG" --fail-on "$FAIL_ON" \
-          > "$RUNNER_TEMP/ctxlint-report.json" || code=$?
+          > "$RUNNER_TEMP/ctxcap-report.json" || code=$?
         echo "code=$code" >> "$GITHUB_OUTPUT"
         node "${{ github.action_path }}/src/index.js" \
           --sarif --baseline "$BASE" --config "$CONFIG" \
-          > "$RUNNER_TEMP/ctxlint.sarif" || true
+          > "$RUNNER_TEMP/ctxcap.sarif" || true
 
     - name: Annotate and summarize
       shell: bash
       if: always()
       env:
-        REPORT_PATH: ${{ runner.temp }}/ctxlint-report.json
+        REPORT_PATH: ${{ runner.temp }}/ctxcap-report.json
       run: node "${{ github.action_path }}/scripts/annotate.mjs"
 
     - name: Upload SARIF to code scanning
       if: always() && inputs.upload-sarif == 'true' && steps.ctx.outputs.can_write == 'true'
       uses: github/codeql-action/upload-sarif@v3.28.0
       with:
-        sarif_file: ${{ runner.temp }}/ctxlint.sarif
-        category: ctxlint
+        sarif_file: ${{ runner.temp }}/ctxcap.sarif
+        category: ctxcap
         checkout_path: ${{ github.workspace }}/${{ inputs.path }}
         ref: ${{ steps.ctx.outputs.sarif_ref }}
         sha: ${{ steps.ctx.outputs.sarif_sha }}
@@ -123,10 +123,10 @@ runs:
       if: always() && steps.ctx.outputs.can_write != 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: ctxlint
+        name: ctxcap
         path: |
-          ${{ runner.temp }}/ctxlint-report.json
-          ${{ runner.temp }}/ctxlint.sarif
+          ${{ runner.temp }}/ctxcap-report.json
+          ${{ runner.temp }}/ctxcap.sarif
 
     - name: Sticky PR comment
       shell: bash
@@ -134,7 +134,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
-        REPORT_PATH: ${{ runner.temp }}/ctxlint-report.json
+        REPORT_PATH: ${{ runner.temp }}/ctxcap-report.json
       run: node "${{ github.action_path }}/scripts/comment.mjs" || true
 
     - name: Fail on breach

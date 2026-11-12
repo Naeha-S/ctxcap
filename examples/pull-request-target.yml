@@ -3,11 +3,11 @@
 # Safe because:
 #  - action runs from github.action_path on the base branch, never executing untrusted PR scripts;
 #  - checks out PR head SHA with fetch-depth: 0 so merge-base can be resolved;
-#  - ctxlint only reads files in the checkout as regular data.
-name: ctxlint
+#  - ctxcap only reads files in the checkout as regular data.
+name: ctxcap
 on: pull_request_target
 jobs:
-  ctxlint:
+  ctxcap:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,6 +18,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - uses: Naeha-S/ctxlint@v0.1.0
+      - uses: Naeha-S/ctxcap@v0.1.0
         with:
           fail-on: increase
