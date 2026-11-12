@@ -1,0 +1,99 @@
+# ctxlint
+
+Token budget linter for prompt and context files. Built for agents: one command, JSON out, zero config.
+
+```bash
+npx -y ctxlint --json
+```
+
+Two dependencies (`fast-glob`, `gpt-tokenizer`), both audited, neither phones home. Runs offline. No API key. No telemetry.
+
+## Why
+
+`CLAUDE.md` and `prompts/**` grow every sprint, get pasted into every request, and burn context. Nothing gates them.
+
+## How this differs from `tokenlint`
+
+`tokenlint` hooks your editor and reminds you per turn about wasteful
+habits. `ctxlint` gates the repo: it measures context files against a
+committed baseline, reports the delta on the PR, and fails only when you
+ask it to. Different layer — CI and review, not keystrokes.
+
+No baseline, no SARIF, no MCP surface there. If you want per-turn nudges
+inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
+
+## Install
+
+```bash
+npm i -D ctxlint
+npx ctxlint --update-baseline
+```
+
+## CLI
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | machine-readable report |
+| `--sarif` | SARIF 2.1.0 |
+| `--suggest` | compression suggestions |
+| `--fail-on increase\|budget\|never` | default: never fail |
+| `--baseline <ref>` | read `ctxlint-baseline.json` from a git ref |
+| `--update-baseline` | write `ctxlint-baseline.json` |
+
+Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
+
+## Config
+
+`.ctxlint.json`, all optional:
+
+```json
+{
+  "include": ["prompts/**"],
+  "budgets": { "total": 40000, "prompts/system.md": 8000 },
+  "failOn": "increase"
+}
+```
+
+## GitHub Action
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write   # SARIF upload; omit and set upload-sarif: false to skip
+
+steps:
+  - uses: actions/checkout@v4
+    with: { fetch-depth: 0 }
+  - uses: Naeha-S/ctxlint@v0.1.0
+    with: { fail-on: increase }
+```
+
+Inputs: `fail-on` (`increase|budget|never`), `config`, `path`, `comment`, `upload-sarif`.
+
+What you get on every run: workflow annotations on over-budget files and a job summary (no token needed).
+When the token can write: a sticky PR comment (one comment, updated in place) and a SARIF upload to code scanning.
+
+### Fork PRs
+
+With plain `pull_request`, fork PRs get a read-only token, so ctxlint degrades to annotations, the job summary
+and a downloadable `ctxlint` artifact (report + SARIF). For the full experience on forks, use `pull_request_target`
+with the safe checkout in [`examples/pull-request-target.yml`](examples/pull-request-target.yml):
+PR content is checked out into a subdirectory as data (`path: pr`), the action runs from your pinned tag, and ctxlint
+only reads regular files inside that directory. Never add steps that execute anything from the PR checkout.
+
+Code scanning requires GitHub Advanced Security on private repos; permissions `security-events: write` must be granted for SARIF upload.
+
+## MCP
+
+```json
+{ "mcpServers": { "ctxlint": { "command": "npx", "args": ["-y", "-p", "ctxlint", "ctxlint-mcp"] } } }
+```
+
+Tools: `measure_context`, `trim_to_budget`.
+
+## Accuracy
+
+Counts use pinned `gpt-tokenizer` — approximate against Claude and Gemini (±5%). Compare deltas, not absolutes. Every report carries `"approximate": true` and the tokenizer id.
+
+MIT.

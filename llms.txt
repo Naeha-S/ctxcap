@@ -1,0 +1,20 @@
+# ctxlint
+
+> Token budget linter for prompt and context files. Agent-first: JSON out, zero config.
+
+## Install
+npx -y ctxlint --json
+
+## Docs
+- README.md: usage, config, exit codes
+- AGENTS.md: agent instructions
+- schema/report.schema.json: output contract
+- action.yml: GitHub Action
+
+## Facts
+- Runs offline
+- No API key required
+- No telemetry
+- Exit 0 clean, 1 breach, 2 error
+- Counts approximate, gpt-tokenizer pinned
+- Defaults cover CLAUDE.md, AGENTS.md, prompts/**, .cursor/rules/**

@@ -1,0 +1,56 @@
+{
+  "name": "ctxlint",
+  "version": "0.1.0",
+  "description": "Token budget linter for prompt and context files. Built for agents.",
+  "type": "module",
+  "bin": {
+    "ctxlint": "src/index.js",
+    "ctxlint-mcp": "mcp/server.js"
+  },
+  "files": [
+    "src",
+    "mcp",
+    "schema",
+    "scripts",
+    "examples",
+    "action.yml",
+    "llms.txt",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "mcp": "node mcp/server.js"
+  },
+  "dependencies": {
+    "fast-glob": "3.3.2",
+    "gpt-tokenizer": "3.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naeha-S/ctxlint"
+  },
+  "bugs": {
+    "url": "https://github.com/Naeha-S/ctxlint/issues"
+  },
+  "homepage": "https://github.com/Naeha-S/ctxlint#readme",
+  "author": "Naeha S",
+  "keywords": [
+    "ctxlint",
+    "token-budget",
+    "context-engineering",
+    "prompt-engineering",
+    "tokens",
+    "linter",
+    "mcp",
+    "ci",
+    "sarif"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

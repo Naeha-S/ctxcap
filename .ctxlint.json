@@ -1,0 +1,5 @@
+{
+  "include": ["AGENTS.md", "llms.txt"],
+  "budgets": { "total": 1200 },
+  "failOn": "budget"
+}

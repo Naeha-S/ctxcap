@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Naeha-S/ctxlint/main/schema/report.schema.json",
+  "title": "ctxlint report",
+  "type": "object",
+  "required": ["schema", "approximate", "tokenizer", "total", "delta", "over", "files"],
+  "properties": {
+    "schema": { "const": "ctxlint/v1" },
+    "approximate": { "type": "boolean" },
+    "tokenizer": { "type": "string" },
+    "total": { "type": "integer", "minimum": 0 },
+    "totalBudget": { "type": ["integer", "null"] },
+    "delta": { "type": "integer" },
+    "over": { "type": "boolean" },
+    "baselineFound": { "type": "boolean" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "tokens", "delta"],
+        "properties": {
+          "path": { "type": "string" },
+          "tokens": { "type": "integer", "minimum": 0 },
+          "delta": { "type": "integer" },
+          "budget": { "type": ["integer", "null"] }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": { "path": { "type": "string" }, "reason": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# Full comment + code-scanning upload on fork PRs.
+#
+# Safe because:
+#  - the workflow file and the action come from the BASE repo (pinned tag), never from the PR;
+#  - PR content is checked out into ./pr as DATA, with credentials not persisted;
+#  - ctxlint only reads files in ./pr (regular files only, no symlinks, no `..`),
+#    and never runs, installs or imports anything from it.
+# Do NOT add steps that run scripts, npm install, or build tools inside ./pr.
+name: ctxlint
+on: pull_request_target
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+jobs:
+  ctxlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: Naeha-S/ctxlint@v0.1.0
+        with:
+          path: pr
+          fail-on: increase

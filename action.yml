@@ -1,0 +1,143 @@
+name: ctxlint
+description: Fail CI when prompt and context files bloat the context window
+author: Naeha S
+branding:
+  icon: scissors
+  color: pink
+inputs:
+  fail-on:
+    description: increase | budget | never
+    required: false
+    default: never
+  config:
+    description: Path to config file, relative to `path`
+    required: false
+    default: .ctxlint.json
+  path:
+    description: >-
+      Directory containing the checked-out repo to lint. Use a subdirectory
+      (e.g. `pr`) with pull_request_target so untrusted PR code never lands in
+      the workspace root. ctxlint only reads files; it never executes them.
+    required: false
+    default: "."
+  comment:
+    description: Post a sticky PR comment (skipped when the token is read-only)
+    required: false
+    default: "true"
+  upload-sarif:
+    description: Upload SARIF to code scanning (needs security-events write; skipped when the token is read-only)
+    required: false
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefix "${{ github.action_path }}"
+
+    - name: Decide capabilities
+      id: ctx
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        # A fork under `pull_request` gets a read-only token: no comment, no SARIF upload.
+        # Under `pull_request_target` the token can write, so both work.
+        can_write=true
+        if [ "$EVENT" = "pull_request" ] && [ "$IS_FORK" = "true" ]; then can_write=false; fi
+        {
+          echo "can_write=$can_write"
+          echo "is_pr=$([ -n "$PR_NUMBER" ] && echo true || echo false)"
+          if [ "$EVENT" = "pull_request_target" ] || [ "$EVENT" = "pull_request" ]; then
+            echo "sarif_ref=refs/pull/${PR_NUMBER}/head"
+            echo "sarif_sha=${HEAD_SHA}"
+          else
+            echo "sarif_ref=${GITHUB_REF}"
+            echo "sarif_sha=${GITHUB_SHA}"
+          fi
+        } >> "$GITHUB_OUTPUT"
+        [ "$can_write" = "true" ] || echo "::notice title=ctxlint::Fork PR with a read-only token: using annotations and job summary only."
+
+    - name: Resolve merge base
+      id: base
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        GH_TOKEN: ${{ github.token }}
+        SERVER: ${{ github.server_url }}
+        REPO: ${{ github.repository }}
+      run: |
+        sha=""
+        if [ -n "$BASE_SHA" ]; then
+          # The PR checkout may come from a fork and not contain the base commit.
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            git -c "http.extraheader=$auth" fetch --no-tags --quiet "$SERVER/$REPO.git" "$BASE_SHA" || true
+          fi
+          sha="$(git merge-base HEAD "$BASE_SHA" 2>/dev/null || true)"
+          # No shared history reachable: fall back to the base commit itself.
+          if [ -z "$sha" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then sha="$BASE_SHA"; fi
+        fi
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Measure
+      id: measure
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      env:
+        CONFIG: ${{ inputs.config }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        BASE: ${{ steps.base.outputs.sha }}
+      run: |
+        code=0
+        node "${{ github.action_path }}/src/index.js" \
+          --json --baseline "$BASE" --config "$CONFIG" --fail-on "$FAIL_ON" \
+          > "$RUNNER_TEMP/ctxlint-report.json" || code=$?
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+        node "${{ github.action_path }}/src/index.js" \
+          --sarif --baseline "$BASE" --config "$CONFIG" \
+          > "$RUNNER_TEMP/ctxlint.sarif" || true
+
+    - name: Annotate and summarize
+      shell: bash
+      if: always()
+      env:
+        REPORT_PATH: ${{ runner.temp }}/ctxlint-report.json
+      run: node "${{ github.action_path }}/scripts/annotate.mjs"
+
+    - name: Upload SARIF to code scanning
+      if: always() && inputs.upload-sarif == 'true' && steps.ctx.outputs.can_write == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ runner.temp }}/ctxlint.sarif
+        category: ctxlint
+        checkout_path: ${{ github.workspace }}/${{ inputs.path }}
+        ref: ${{ steps.ctx.outputs.sarif_ref }}
+        sha: ${{ steps.ctx.outputs.sarif_sha }}
+
+    - name: Upload report artifact (read-only fallback)
+      if: always() && steps.ctx.outputs.can_write != 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ctxlint
+        path: |
+          ${{ runner.temp }}/ctxlint-report.json
+          ${{ runner.temp }}/ctxlint.sarif
+
+    - name: Sticky PR comment
+      shell: bash
+      if: always() && inputs.comment == 'true' && steps.ctx.outputs.is_pr == 'true' && steps.ctx.outputs.can_write == 'true'
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPORT_PATH: ${{ runner.temp }}/ctxlint-report.json
+      run: node "${{ github.action_path }}/scripts/comment.mjs" || true
+
+    - name: Fail on breach
+      shell: bash
+      if: steps.measure.outputs.code != '' && steps.measure.outputs.code != '0'
+      run: exit 1
