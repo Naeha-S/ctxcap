@@ -5,6 +5,9 @@
 ## Install
 npx -y ctxlint --json
 
+## MCP
+npx -y -p ctxlint@latest ctxlint-mcp
+
 ## Docs
 - README.md: usage, config, exit codes
 - AGENTS.md: agent instructions

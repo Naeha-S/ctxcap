@@ -1,29 +1,23 @@
-# Full comment + code-scanning upload on fork PRs.
+# Safe full review (sticky PR comment + SARIF code scanning) on fork PRs.
 #
 # Safe because:
-#  - the workflow file and the action come from the BASE repo (pinned tag), never from the PR;
-#  - PR content is checked out into ./pr as DATA, with credentials not persisted;
-#  - ctxlint only reads files in ./pr (regular files only, no symlinks, no `..`),
-#    and never runs, installs or imports anything from it.
-# Do NOT add steps that run scripts, npm install, or build tools inside ./pr.
+#  - action runs from github.action_path on the base branch, never executing untrusted PR scripts;
+#  - checks out PR head SHA with fetch-depth: 0 so merge-base can be resolved;
+#  - ctxlint only reads files in the checkout as regular data.
 name: ctxlint
 on: pull_request_target
-permissions:
-  contents: read
-  pull-requests: write
-  security-events: write
 jobs:
   ctxlint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
-          path: pr
           fetch-depth: 0
-          persist-credentials: false
       - uses: Naeha-S/ctxlint@v0.1.0
         with:
-          path: pr
           fail-on: increase

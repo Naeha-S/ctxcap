@@ -25,7 +25,7 @@ inputs:
     required: false
     default: "true"
   upload-sarif:
-    description: Upload SARIF to code scanning (needs security-events write; skipped when the token is read-only)
+    description: Upload SARIF to code scanning (requires security-events: write and code scanning enabled; silently no-ops on private repos without GHAS)
     required: false
     default: "true"
 runs:
@@ -111,7 +111,7 @@ runs:
 
     - name: Upload SARIF to code scanning
       if: always() && inputs.upload-sarif == 'true' && steps.ctx.outputs.can_write == 'true'
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v3.28.0
       with:
         sarif_file: ${{ runner.temp }}/ctxlint.sarif
         category: ctxlint

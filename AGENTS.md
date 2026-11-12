@@ -19,6 +19,10 @@ sections and stale instructions. Re-run until `over` is false.
 ## Exit codes
 0 clean, 1 breach, 2 error. Always pass --json; never rely on text output.
 
+## MCP
+npx -y -p ctxlint@latest ctxlint-mcp
+Tools: measure_context, trim_to_budget
+
 ## Constraints
 No network. No telemetry. No API key. Counts are approximate (±5%) —
 compare deltas, not absolute values.

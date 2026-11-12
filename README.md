@@ -77,17 +77,18 @@ When the token can write: a sticky PR comment (one comment, updated in place) an
 ### Fork PRs
 
 With plain `pull_request`, fork PRs get a read-only token, so ctxlint degrades to annotations, the job summary
-and a downloadable `ctxlint` artifact (report + SARIF). For the full experience on forks, use `pull_request_target`
-with the safe checkout in [`examples/pull-request-target.yml`](examples/pull-request-target.yml):
-PR content is checked out into a subdirectory as data (`path: pr`), the action runs from your pinned tag, and ctxlint
-only reads regular files inside that directory. Never add steps that execute anything from the PR checkout.
+and a downloadable `ctxlint` artifact (report + SARIF). For the full experience on forks (sticky comments and SARIF upload),
+use `pull_request_target` with `ref: ${{ github.event.pull_request.head.sha }}` and `fetch-depth: 0` as shown in [`examples/pull-request-target.yml`](examples/pull-request-target.yml).
+Safe because ctxlint executes only from `github.action_path` on the base branch and reads PR files strictly as data without executing repo scripts.
 
-Code scanning requires GitHub Advanced Security on private repos; permissions `security-events: write` must be granted for SARIF upload.
+Code scanning requires GitHub Advanced Security on private repos; SARIF upload silently no-ops without it.
 
 ## MCP
 
+Run directly via `npx -y -p ctxlint@latest ctxlint-mcp` or configure in your client:
+
 ```json
-{ "mcpServers": { "ctxlint": { "command": "npx", "args": ["-y", "-p", "ctxlint", "ctxlint-mcp"] } } }
+{ "mcpServers": { "ctxlint": { "command": "npx", "args": ["-y", "-p", "ctxlint@latest", "ctxlint-mcp"] } } }
 ```
 
 Tools: `measure_context`, `trim_to_budget`.
