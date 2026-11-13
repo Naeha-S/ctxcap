@@ -13,6 +13,24 @@ function normalized(line) {
   return line.replace(/[`*_>#-]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function safeCondense(text, maxChars) {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const upper = Math.min(maxChars, 400);
+  const lower = Math.min(240, upper);
+  const boundaries = [...flat.matchAll(/[.!?;]/g)].map((match) => match.index + 1)
+    .filter((index) => index <= upper && index >= lower);
+  for (const end of boundaries.reverse()) {
+    const candidate = flat.slice(0, end).trim();
+    if ((candidate.match(/`/g) ?? []).length % 2 === 0 && !/\w$/.test(candidate)) return candidate;
+  }
+  const lastBoundary = [...flat.matchAll(/[.!?;]/g)].at(-1)?.index;
+  const tail = lastBoundary === undefined ? flat.slice(-80) : flat.slice(lastBoundary).trim();
+  const headLimit = Math.min(200, Math.max(0, maxChars - tail.length - 5));
+  const head = flat.slice(0, headLimit).replace(/\s+\S*$/, '').trim();
+  const candidate = `${head} […] ${tail}`.trim();
+  return candidate.length <= maxChars ? candidate : flat.slice(0, maxChars).replace(/\s+\S*$/, '').trim();
+}
+
 function paragraphSpans(file) {
   const lines = file.text.split('\n');
   const spans = [];
@@ -65,13 +83,17 @@ function bestNonOverlappingCandidates(candidates) {
   )[0]);
 }
 
+function scoreFor(tokensFreed, confidence, action, loadBearing) {
+  return tokensFreed * confidence * (action === 'condense' ? 0.7 * (loadBearing ? 0.8 : 1) : 1);
+}
+
 function planId(findings) {
   const input = findings.map((f) => `${f.file}:${f.startLine}:${f.endLine}:${f.kind}`).sort().join('\n');
   return createHash('sha256').update(input).digest('hex').slice(0, 6);
 }
 
 function findingFor(file, startLine, endLine, kind, tokensFreed, confidence, rationale, loadBearing = false, action = 'delete', replacementTokens = 0) {
-  return { file, startLine, endLine, kind, tokensFreed, replacementTokens, confidence, loadBearing, rationale, action };
+  return { file, startLine, endLine, kind, tokensFreed, replacementTokens, confidence, loadBearing, rationale, action, score: scoreFor(tokensFreed, confidence, action, loadBearing) };
 }
 
 function attachInternal(plan, internal) {
@@ -83,7 +105,7 @@ function hashText(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
-export async function makePlan({ files, root, config, budget, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false }) {
+export async function makePlan({ files, root, config, budget, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false, maxCondenseChars = 320, minTokens = 20 }) {
   if (!Number.isInteger(budget) || budget < 0) {
     const error = new Error('budget must be a non-negative integer');
     error.code = 'BUDGET_INVALID';
@@ -130,7 +152,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
       const { loadBearing } = classifySpan(span, file);
       const tokens = countTokens(span.lines.join('\n'));
       if (tokens > 300) {
-        const condensedText = `${span.lines.join(' ').slice(0, 240).trim()}...`;
+        const condensedText = safeCondense(span.lines.join(' '), maxCondenseChars);
         const replacementTokens = countTokens(condensedText);
         const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), loadBearing ? 0.5 : 0.65, loadBearing ? 'load-bearing paragraph over 300 tokens' : 'non-load-bearing paragraph over 300 tokens', loadBearing, 'condense', replacementTokens);
         finding.condensedText = condensedText;
@@ -140,7 +162,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     }
   }
   const filtered = candidates
-    .filter((candidate) => candidate.tokensFreed >= 40)
+    .filter((candidate) => candidate.tokensFreed >= minTokens)
     .filter((candidate) => strictPreserve
       ? !preserve.some((span) => overlaps(candidate, span))
       : candidate.action === 'condense'
@@ -148,7 +170,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
         : candidate.action === 'deleteKeepingCanonical'
           ? Boolean(candidate._canonicalSpan && !overlaps(candidate._canonicalSpan, candidate))
           : !preserve.some((span) => overlaps(candidate, span)))
-    .sort((a, b) => (b.tokensFreed / (a.action === 'condense' ? 3 : 1)) - (a.tokensFreed / (b.action === 'condense' ? 3 : 1))
+    .sort((a, b) => b.score - a.score
       || a.file.localeCompare(b.file) || a.startLine - b.startLine);
   const id = planId(filtered);
   let selected = filtered.slice(0, maxFindings).map((finding, index) => ({ id: `${id}:${index}`, ...finding }));

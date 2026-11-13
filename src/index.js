@@ -28,6 +28,7 @@ Usage: ctxcap [options]
   --verify <planId>   verify a previously saved plan
   --budget <n>        target budget for --plan
   --strict-preserve    exclude all load-bearing spans from plans
+  --max-condense-chars <n>  maximum condensed replacement length (default: 320)
   --baseline <ref>    read baseline from a git ref (CI uses merge base)
   --update-baseline   write ${BASELINE_FILE} and exit
   --config <path>     config file (default: .ctxcap.json)
@@ -38,7 +39,7 @@ Exit: 0 clean, 1 breach under --fail-on, 2 internal error.
 No network. No telemetry. No API key.`;
 
 function parseArgs(argv) {
-  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, strictPreserve: false, updateBaseline: false, failOn: null, baseline: null, config: null, root: '.' };
+  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, failOn: null, baseline: null, config: null, root: '.' };
   const need = (i, flag) => {
     if (i + 1 >= argv.length) throw new Error(`${flag} needs a value`);
     return argv[i + 1];
@@ -56,6 +57,8 @@ function parseArgs(argv) {
     else if (a === '--verify') o.verify = need(i++, a);
     else if (a === '--budget') o.budget = Number(need(i++, a));
     else if (a === '--strict-preserve') o.strictPreserve = true;
+    else if (a === '--max-condense-chars') o.maxCondenseChars = Number(need(i++, a));
+    else if (a === '--min-tokens') o.minTokens = Number(need(i++, a));
     else if (a === '--update-baseline') o.updateBaseline = true;
     else if (a === '--help' || a === '-h') o.help = true;
     else if (a === '--version') o.version = true;
@@ -108,7 +111,7 @@ async function main() {
   for (const file of files) file.baselineTokens = baselineCounts[file.path];
   if (opts.plan) {
     const budget = opts.budget ?? config.budgets.total;
-    const plan = await makePlan({ files, root, config, budget, apply: opts.apply, strictPreserve: opts.strictPreserve });
+    const plan = await makePlan({ files, root, config, budget, apply: opts.apply, strictPreserve: opts.strictPreserve, maxCondenseChars: opts.maxCondenseChars, minTokens: opts.minTokens });
     await savePlan(root, plan);
     console.log(JSON.stringify(plan, null, 2));
     return plan.satisfiable && (!opts.apply || plan.missed?.length === 0) ? 0 : 1;

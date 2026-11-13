@@ -19,7 +19,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "file", "startLine", "endLine", "kind", "tokensFreed", "replacementTokens", "confidence", "loadBearing", "rationale", "action"],
+        "required": ["id", "file", "startLine", "endLine", "kind", "tokensFreed", "replacementTokens", "confidence", "loadBearing", "rationale", "action", "score"],
         "properties": {
           "id": { "type": "string" },
           "file": { "type": "string" },
@@ -32,6 +32,7 @@
           "loadBearing": { "type": "boolean" },
           "rationale": { "type": "string" },
           "action": { "enum": ["delete", "deleteKeepingCanonical", "condense"] },
+          "score": { "type": "number", "minimum": 0 },
           "condensedText": { "type": "string" }
         }
       }

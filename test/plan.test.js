@@ -153,3 +153,26 @@ test('load-bearing duplicate keeps the earlier canonical span', async () => {
   const verified = await verifyPlan(plan, data.root);
   assert.deepEqual(verified.violations, []);
 });
+
+test('condense replacements end at a safe sentence or clause boundary', async () => {
+  const data = await fixtureFromDirectory('survivable-condense');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 320 });
+  const finding = plan.plan.find((entry) => entry.action === 'condense');
+  assert.ok(finding);
+  assert.ok(finding.condensedText.length <= 320);
+  assert.equal((finding.condensedText.match(/`/g) ?? []).length % 2, 0);
+  assert.match(finding.condensedText, /[.!?;]$/);
+});
+
+test('findings expose explicit scores and sort by score', async () => {
+  const data = await fixture();
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.ok(plan.plan.every((finding) => typeof finding.score === 'number'));
+  for (let i = 1; i < plan.plan.length; i++) assert.ok(plan.plan[i - 1].score >= plan.plan[i].score);
+});
+
+test('default finding floor includes a small reclaimable paragraph', async () => {
+  const data = await fixtureFromDirectory('minimum-finding-floor');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.ok(plan.plan.some((finding) => finding.tokensFreed >= 20));
+});
