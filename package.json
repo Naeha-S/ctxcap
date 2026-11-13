@@ -1,7 +1,7 @@
 {
   "name": "ctxcap",
   "version": "1.2.0",
-  "description": "Token budget linter for prompt and context files. Built for agents.",
+  "description": "Offline token-budget linter for agent context files — measures CLAUDE.md/AGENTS.md, finds dead references, returns a ranked plan.",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -42,15 +42,18 @@
   "homepage": "https://github.com/Naeha-S/ctxcap#readme",
   "author": "Naeha S",
   "keywords": [
+    "claude-code",
+    "cursor",
+    "agents",
+    "context",
     "ctxcap",
     "token-budget",
     "context-engineering",
     "prompt-engineering",
-    "tokens",
     "linter",
     "mcp",
-    "ci",
-    "sarif"
+    "sarif",
+    "github-action"
   ],
   "publishConfig": {
     "access": "public"

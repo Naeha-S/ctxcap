@@ -43,18 +43,25 @@ Agents can fetch the five-line loop from [`llms.txt`](llms.txt).
 
 ## Before and after
 
+This is a real measurement from the ctxcap repository itself:
+
 ```text
-$ npx ctxcap --plan --budget 2000
-satisfiable: true   current: 3000   minAchievable: 1180   tokensRemaining: 1000
+$ npx ctxcap --json
+total: 476   baseline: 363   delta: +113   files: 2
 
-  1. CLAUDE.md:88-103   -412  stalePathBlock    refs src/lib/auth, moved to src/core/auth
-  2. AGENTS.md:12-34    -388  duplicateRule     duplicate of CLAUDE.md:41-63
-  3. CLAUDE.md:150-171  -295  condense          prose under ## Background
-
-preserve: AGENTS.md:4-9 (under ## Never), CLAUDE.md:1-30 (paths resolve)
+$ npx ctxcap --plan --budget 400
+satisfiable: false   current: 476   minAchievable: 476   tokensRemaining: 76
+plan: []   preserve: AGENTS.md:19-20, llms.txt:17-30
 ```
 
-Apply, verify, done: **3,000 -> 1,940 tokens, all `## Never` rules intact.**
+The result correctly stops instead of cutting load-bearing instructions. For a
+successful before/after case study, use a public repository with a larger
+context file and publish the commit, JSON reports, plan, and verification
+result together.
+
+To publish a reproducible case study, include the repository commit, the
+`ctxcap --json` report before and after, the plan JSON, and the verification
+result. This makes the reclaim measurable and lets readers reproduce it.
 
 Context can be stale as well as large. Run the dead-reference pass to find
 paths, commands, globs, and `@path`/`#path` references that no longer resolve:
@@ -234,6 +241,13 @@ Configure in your MCP client:
   }
 }
 ```
+
+The same stdio command works with Claude Code, Codex, and Cursor. See the
+[MCP package guide](packages/ctxcap-mcp/README.md) for client-specific setup.
+The server reads the MCP client's current working directory and makes no
+network calls.
+Registry metadata is prepared in [`server.json`](server.json); publication is
+manual and intentionally not performed by this repository workflow.
 
 **Tools exposed:**
 

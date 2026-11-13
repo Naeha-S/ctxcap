@@ -1,30 +1,5 @@
 # ctxcap
-
-> Token budget linter for prompt and context files. Agent-first: JSON out, zero config.
-
-## Install
-npx -y ctxcap --json
-
-## MCP
-npx -y ctxcap-mcp
-
-## Docs
-- README.md: usage, config, exit codes
-- AGENTS.md: agent instructions
-- schema/report.schema.json: output contract
-- action.yml: GitHub Action
-
-## Facts
-- Runs offline
-- No API key required
-- No telemetry
-- Exit 0 clean, 1 breach, 2 error
-- Counts approximate, gpt-tokenizer pinned
-- Defaults cover CLAUDE.md, AGENTS.md, prompts/**, .cursor/rules/**
-- `--stale` finds dead paths, commands, globs, and missing references
-- `--fail-on stale` enables a stale-reference CI gate
-- Loop: context_budget_plan -> apply in order by line range -> context_budget_verify -> stop at tokensRemaining <= 0.
-- Never rewrite a context file from scratch. Splice by startLine/endLine.
-- Never cut a span in `preserve`.
-- If satisfiable is false, report minAchievable and stop.
-- Measure deltas, not absolutes. Counts are approximate (+/-5%).
+Offline context-file budget management for AI coding agents; no API key, network, or configuration.
+Use `npx -y ctxcap --json` for CLAUDE.md, AGENTS.md, Cursor rules, and prompt token usage and stale references.
+MCP: `npx -y ctxcap-mcp`; call `context_budget_plan`, splice by startLine/endLine, never cut preserve, then call verify.
+If satisfiable is false, report minAchievable and stop; measure deltas, not absolutes (counts are approximate +/-5%).

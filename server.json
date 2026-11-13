@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Naeha-S/ctxcap",
+  "title": "ctxcap",
+  "description": "Offline context-budget MCP server for AI coding agents.",
+  "websiteUrl": "https://github.com/Naeha-S/ctxcap",
+  "repository": {
+    "url": "https://github.com/Naeha-S/ctxcap",
+    "source": "github"
+  },
+  "version": "0.1.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "ctxcap-mcp",
+      "version": "0.1.4",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

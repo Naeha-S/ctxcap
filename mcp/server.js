@@ -20,22 +20,22 @@ const plans = new Map();
 const TOOLS = [
   {
     name: 'measure_context',
-    description: 'Measure token cost and delta of context files. Returns JSON.',
+    description: 'Use when CLAUDE.md, AGENTS.md, Cursor rules, or prompts may be too large or consuming too much context. Input: optional suggest, stale, and staleGlob booleans. Returns JSON token totals, per-file counts, baseline deltas, budget status, suggestions, and optional stale-reference findings. Runs offline and only reads the current working directory.',
     inputSchema: { type: 'object', properties: { suggest: { type: 'boolean' }, stale: { type: 'boolean' }, staleGlob: { type: 'boolean' } } }
   },
   {
     name: 'context_budget_plan',
-    description: 'Call before appending more than ~50 lines to a context file, or when a file exceeds its budget. Returns a ranked splice plan. Apply entries in order by line range; never rewrite the file from scratch. If satisfiable is false, report minAchievable and stop. Never cut spans listed in preserve.',
+    description: 'Use before appending more than ~50 lines or when CLAUDE.md, AGENTS.md, Cursor rules, or prompts exceed budget. Input: required integer budget plus optional maxFindings, includeDiff, and apply. Returns a deterministic ranked plan with file line ranges, tokensFreed, confidence, safety actions, preserve spans, and satisfiable/minAchievable stop state. Apply entries in order by startLine/endLine, never rewrite a file, never cut preserve spans, stop when satisfiable is false, and call context_budget_verify after edits.',
     inputSchema: { type: 'object', required: ['budget'], properties: { budget: { type: 'integer' }, maxFindings: { type: 'integer' }, includeDiff: { type: 'boolean' }, apply: { type: 'boolean' } } }
   },
   {
     name: 'context_budget_verify',
-    description: 'Call after applying a plan. Reports missed edits and preserve-span violations. Do not consider the budget met until satisfied is true.',
+    description: 'Use after applying a context-budget plan to catch missed edits, manual drift, or preserve-span violations. Input: the planId returned by context_budget_plan. Returns applied and missed finding IDs, violations with file and line ranges, remaining tokens, and satisfied. Do not consider the budget met until satisfied is true.',
     inputSchema: { type: 'object', required: ['planId'], properties: { planId: { type: 'string' } } }
   },
   {
     name: 'trim_to_budget',
-    description: 'Deprecated alias for context_budget_plan. Returns a ranked plan with apply false.',
+    description: 'Deprecated alias for context_budget_plan for clients using the old name. Input: required integer budget and optional maxFindings. Returns the same ranked, safety-classified plan with apply false; it never writes files. Follow line ranges, preserve spans, satisfiable stop rules, and verification guidance from context_budget_plan.',
     inputSchema: { type: 'object', required: ['budget'], properties: { budget: { type: 'integer' }, maxFindings: { type: 'integer' } } }
   }
 ];

@@ -40,7 +40,8 @@ test('MCP initialize and tools call return the current package version and repor
 
     const listed = await request(proc, { jsonrpc: '2.0', id: 2, method: 'tools/list' });
     assert.deepEqual(listed.result.tools.map((tool) => tool.name), ['measure_context', 'context_budget_plan', 'context_budget_verify', 'trim_to_budget']);
-    assert.equal(listed.result.tools[1].description, 'Call before appending more than ~50 lines to a context file, or when a file exceeds its budget. Returns a ranked splice plan. Apply entries in order by line range; never rewrite the file from scratch. If satisfiable is false, report minAchievable and stop. Never cut spans listed in preserve.');
+    assert.match(listed.result.tools[1].description, /CLAUDE\.md/);
+    assert.match(listed.result.tools[1].description, /context_budget_verify/);
 
     const measured = await request(proc, {
       jsonrpc: '2.0', id: 3, method: 'tools/call',

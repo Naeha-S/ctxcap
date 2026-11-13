@@ -1,7 +1,8 @@
 {
   "name": "ctxcap-mcp",
-  "version": "0.1.2",
-  "description": "Model Context Protocol (MCP) server for ctxcap token budget linter",
+  "version": "0.1.4",
+  "description": "Offline MCP server for measuring, finding, and safely reducing bloated or stale AI coding-agent context files",
+  "mcpName": "io.github.Naeha-S/ctxcap",
   "type": "module",
   "bin": {
     "ctxcap-mcp": "bin/ctxcap-mcp.js"
@@ -12,8 +13,18 @@
   "engines": {
     "node": ">=20"
   },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "claude-code",
+    "cursor",
+    "ai-agents",
+    "context-engineering",
+    "token-budget",
+    "prompt-engineering"
+  ],
   "dependencies": {
-    "ctxcap": "^1.0.1"
+    "ctxcap": "^1.2.0"
   },
   "repository": {
     "type": "git",
