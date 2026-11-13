@@ -149,4 +149,7 @@ test('load-bearing duplicate keeps the earlier canonical span', async () => {
   assert.ok(duplicate);
   assert.equal(duplicate.canonical, 'AGENTS.md:3:3');
   assert.match(duplicate.rationale, /AGENTS\.md:3:3/);
+  await applyPlan(plan, data.root);
+  const verified = await verifyPlan(plan, data.root);
+  assert.deepEqual(verified.violations, []);
 });

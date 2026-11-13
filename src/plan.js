@@ -143,9 +143,11 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     .filter((candidate) => candidate.tokensFreed >= 40)
     .filter((candidate) => strictPreserve
       ? !preserve.some((span) => overlaps(candidate, span))
-      : candidate.action === 'condense' || candidate.action === 'deleteKeepingCanonical'
+      : candidate.action === 'condense'
         ? true
-        : !preserve.some((span) => overlaps(candidate, span)))
+        : candidate.action === 'deleteKeepingCanonical'
+          ? Boolean(candidate._canonicalSpan && !overlaps(candidate._canonicalSpan, candidate))
+          : !preserve.some((span) => overlaps(candidate, span)))
     .sort((a, b) => (b.tokensFreed / (a.action === 'condense' ? 3 : 1)) - (a.tokensFreed / (b.action === 'condense' ? 3 : 1))
       || a.file.localeCompare(b.file) || a.startLine - b.startLine);
   const id = planId(filtered);
@@ -318,6 +320,12 @@ export async function verifyPlan(plan, root) {
     else applied.push(finding.id);
   }
   for (const span of plan.preserve) {
+    const intentionallyRemoved = plan.plan.some((finding) =>
+      finding.action === 'deleteKeepingCanonical' &&
+      applied.includes(finding.id) &&
+      overlaps(finding, span)
+    );
+    if (intentionallyRemoved) continue;
     try {
       const text = await readFile(path.join(root, span.file), 'utf8');
       const expected = plan._internal?.preserveText?.[`${span.file}:${span.startLine}:${span.endLine}`];
