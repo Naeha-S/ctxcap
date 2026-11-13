@@ -1,0 +1,31 @@
+{
+  "name": "ctxcap-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol (MCP) server for ctxcap token budget linter",
+  "type": "module",
+  "bin": {
+    "ctxcap-mcp": "bin/ctxcap-mcp.js"
+  },
+  "files": [
+    "bin/ctxcap-mcp.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ctxcap": "^0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Naeha-S/ctxcap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Naeha-S/ctxcap/issues"
+  },
+  "homepage": "https://github.com/Naeha-S/ctxcap#readme",
+  "author": "Naeha S",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
