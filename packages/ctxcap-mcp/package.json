@@ -1,6 +1,6 @@
 {
   "name": "ctxcap-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Model Context Protocol (MCP) server for ctxcap token budget linter",
   "type": "module",
   "bin": {
@@ -13,7 +13,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "ctxcap": "^0.1.0"
+    "ctxcap": "^1.0.1"
   },
   "repository": {
     "type": "git",

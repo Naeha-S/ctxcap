@@ -10,17 +10,15 @@ Two dependencies (`fast-glob`, `gpt-tokenizer`), both audited, neither phones ho
 
 ## Why
 
-`CLAUDE.md` and `prompts/**` grow every sprint, get pasted into every request, and burn context. Nothing gates them.
+Agent context files — `CLAUDE.md`, `AGENTS.md`, `prompts/**`, `.cursor/rules/` — grow every sprint. They get pasted into every request and silently burn your context window. Nothing gates them at the repo level.
+
+`ctxcap` fixes that: it measures context files, tracks token deltas against a committed baseline, fails CI when you define a budget, and exposes an MCP server so agents can check themselves.
 
 ## How this differs from `tokenlint`
 
-`tokenlint` hooks your editor and reminds you per turn about wasteful
-habits. `ctxcap` gates the repo: it measures context files against a
-committed baseline, reports the delta on the PR, and fails only when you
-ask it to. Different layer — CI and review, not keystrokes.
+`tokenlint` hooks your editor and reminds you per turn about wasteful habits. `ctxcap` gates the repo: it measures context files against a committed baseline, reports the delta on every PR, and fails only when you ask it to. Different layer — CI and review, not keystrokes.
 
-No baseline, no SARIF, no MCP surface there. If you want per-turn nudges
-inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
+No baseline, no SARIF, no MCP surface there. If you want per-turn nudges inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
 
 ## Install
 
@@ -29,30 +27,45 @@ npm i -D ctxcap
 npx ctxcap --update-baseline
 ```
 
+Or run without installing:
+
+```bash
+npx -y ctxcap --json
+```
+
 ## CLI
 
 | Flag | Effect |
 | --- | --- |
-| `--json` | machine-readable report |
-| `--sarif` | SARIF 2.1.0 |
-| `--suggest` | compression suggestions |
-| `--fail-on increase\|budget\|never` | default: never fail |
-| `--baseline <ref>` | read `ctxcap-baseline.json` from a git ref |
-| `--update-baseline` | write `ctxcap-baseline.json` |
+| `--json` | Machine-readable JSON report on stdout |
+| `--sarif` | SARIF 2.1.0 on stdout |
+| `--suggest` | Include compression suggestions |
+| `--fail-on increase\|budget\|never` | When to exit 1 (default: `never`) |
+| `--baseline <ref>` | Read baseline from a git ref (CI uses merge base automatically) |
+| `--update-baseline` | Write `ctxcap-baseline.json` and exit |
+| `--config <path>` | Config file path (default: `.ctxcap.json`) |
+| `--root <path>` | Working directory (default: `.`) |
 
 Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
 
 ## Config
 
-`.ctxcap.json`, all optional:
+`.ctxcap.json` — all fields optional:
 
 ```json
 {
-  "include": ["prompts/**"],
-  "budgets": { "total": 40000, "prompts/system.md": 8000 },
-  "failOn": "increase"
+  "include": ["AGENTS.md", "prompts/**", ".cursor/rules/**"],
+  "ignore": ["prompts/archive/**"],
+  "budgets": {
+    "total": 40000,
+    "AGENTS.md": 500,
+    "prompts/system.md": 8000
+  },
+  "failOn": "budget"
 }
 ```
+
+**Defaults** (when no config exists): scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `prompts/**`, `*.prompt`, `.cursor/rules/**`.
 
 ## GitHub Action
 
@@ -60,41 +73,99 @@ Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
 permissions:
   contents: read
   pull-requests: write
-  security-events: write   # SARIF upload; omit and set upload-sarif: false to skip
+  security-events: write   # for SARIF upload; drop if you set upload-sarif: false
 
 steps:
   - uses: actions/checkout@v4
     with: { fetch-depth: 0 }
-  - uses: Naeha-S/ctxcap@v0.1.0
+  - uses: Naeha-S/ctxcap@v1
     with: { fail-on: increase }
 ```
 
-Inputs: `fail-on` (`increase|budget|never`), `config`, `path`, `comment`, `upload-sarif`.
+**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.0.1`
 
-What you get on every run: workflow annotations on over-budget files and a job summary (no token needed).
-When the token can write: a sticky PR comment (one comment, updated in place) and a SARIF upload to code scanning.
+Inputs:
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `fail-on` | `never` | `increase` \| `budget` \| `never` |
+| `config` | `.ctxcap.json` | Path to config file |
+| `path` | `.` | Root directory to lint |
+| `comment` | `true` | Post sticky PR comment |
+| `upload-sarif` | `true` | Upload SARIF to code scanning |
+
+**What you get on every run:**
+- Workflow annotations on over-budget files
+- Job step summary with token table and delta
+
+**When the token can write (non-fork PRs):**
+- Sticky PR comment, updated in place (one comment, not a new one each run)
+- SARIF upload to GitHub code scanning
 
 ### Fork PRs
 
-With plain `pull_request`, fork PRs get a read-only token, so ctxcap degrades to annotations, the job summary
-and a downloadable `ctxcap` artifact (report + SARIF). For the full experience on forks (sticky comments and SARIF upload),
-use `pull_request_target` with `ref: ${{ github.event.pull_request.head.sha }}` and `fetch-depth: 0` as shown in [`examples/pull-request-target.yml`](examples/pull-request-target.yml).
-Safe because ctxcap executes only from `github.action_path` on the base branch and reads PR files strictly as data without executing repo scripts.
+With plain `pull_request`, fork PRs get a read-only token: annotations and job summary only. For the full experience on forks, use `pull_request_target` as shown in [`examples/pull-request-target.yml`](examples/pull-request-target.yml).
 
 Code scanning requires GitHub Advanced Security on private repos; SARIF upload silently no-ops without it.
 
 ## MCP
 
-Run directly via `npx -y ctxcap-mcp` or configure in your client:
+Run the MCP server directly — no config needed:
 
-```json
-{ "mcpServers": { "ctxcap": { "command": "npx", "args": ["-y", "ctxcap-mcp"] } } }
+```bash
+npx -y ctxcap-mcp
 ```
 
-Tools: `measure_context`, `trim_to_budget`.
+Configure in your MCP client:
+
+```json
+{
+  "mcpServers": {
+    "ctxcap": {
+      "command": "npx",
+      "args": ["-y", "ctxcap-mcp"]
+    }
+  }
+}
+```
+
+**Tools exposed:**
+
+| Tool | Description |
+| --- | --- |
+| `measure_context` | Returns the full JSON report for the current working directory |
+| `trim_to_budget` | Returns the 5 largest files ranked by token count so the agent knows what to compress |
+
+## Output schema
+
+```json
+{
+  "schema": "ctxcap/v1",
+  "approximate": true,
+  "tokenizer": "gpt-tokenizer@3.0.1",
+  "total": 1247,
+  "totalBudget": 40000,
+  "delta": +82,
+  "over": false,
+  "baselineFound": true,
+  "files": [
+    { "path": "AGENTS.md", "tokens": 420, "delta": +12, "budget": 500 }
+  ],
+  "suggestions": []
+}
+```
+
+Full schema: [`schema/report.schema.json`](schema/report.schema.json).
 
 ## Accuracy
 
-Counts use pinned `gpt-tokenizer` — approximate against Claude and Gemini (±5%). Compare deltas, not absolutes. Every report carries `"approximate": true` and the tokenizer id.
+Counts use pinned `gpt-tokenizer` — approximate against Claude and Gemini (±5%). Every report carries `"approximate": true` and the tokenizer ID. Compare **deltas**, not absolutes — the delta stays consistent across runs even if the absolute count drifts from your model's exact count.
+
+## Packages
+
+| Package | Description |
+| --- | --- |
+| [`ctxcap`](https://www.npmjs.com/package/ctxcap) | CLI + GitHub Action + embedded MCP server |
+| [`ctxcap-mcp`](https://www.npmjs.com/package/ctxcap-mcp) | Standalone MCP server wrapper (thin bin, pulls ctxcap as a dep) |
 
 MIT.

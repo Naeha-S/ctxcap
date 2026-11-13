@@ -3,7 +3,7 @@ description: Fail CI when prompt and context files bloat the context window
 author: Naeha S
 branding:
   icon: scissors
-  color: pink
+  color: purple
 inputs:
   fail-on:
     description: increase | budget | never
