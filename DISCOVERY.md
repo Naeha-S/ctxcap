@@ -19,8 +19,8 @@
 
 [`server.json`](server.json) uses the current official schema URL,
 `io.github.Naeha-S/ctxcap` as the server namespace, and the next
-`ctxcap-mcp@0.1.5` package metadata. The currently published `0.1.4` cannot
-be overwritten; publish `0.1.5` after publishing `ctxcap@1.2.1` and before
+`ctxcap-mcp@0.1.6` package metadata. The currently published `0.1.5` cannot
+be overwritten; publish `0.1.6` after publishing `ctxcap@1.3.0` and before
 submitting the registry entry. The
 official registry requires:
 
@@ -50,7 +50,7 @@ duplicate entries or open PRs without selecting and reviewing each target.
 
 1. Authenticate the GitHub namespace if the MCP Registry requests proof.
 2. Submit `server.json` through the official MCP Registry publishing workflow.
-3. Publish `ctxcap-mcp@0.1.5`, which depends on the corrected `ctxcap@1.2.1`, before registry
+3. Publish `ctxcap-mcp@0.1.6`, which depends on `ctxcap@1.3.0`, before registry
    submission.
 4. Choose one public repository with a large context file, run the documented
    before/after workflow, and publish the resulting case study.

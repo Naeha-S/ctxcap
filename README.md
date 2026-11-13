@@ -126,15 +126,15 @@ Use the pinned version in release checks or reproducible CI. For a real edit
 loop, review the plan, apply it, then verify the saved plan:
 
 ```bash
-npx -y ctxcap@1.2.1 --plan --budget 40000
-npx -y ctxcap@1.2.1 --plan --budget 40000 --apply
-npx -y ctxcap@1.2.1 --verify <planId>
+npx -y ctxcap@1.3.0 --plan --budget 40000
+npx -y ctxcap@1.3.0 --plan --budget 40000 --apply
+npx -y ctxcap@1.3.0 --verify <planId>
 ```
 
 Start with a baseline when you want pull requests to report growth:
 
 ```bash
-npx -y ctxcap@1.2.1 --update-baseline
+npx -y ctxcap@1.3.0 --update-baseline
 git add ctxcap-baseline.json
 git commit -m "Add ctxcap baseline"
 ```
@@ -211,7 +211,7 @@ steps:
     with: { fail-on: increase }
 ```
 
-**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.2.1`
+**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.3.0`
 
 Inputs:
 
@@ -323,15 +323,15 @@ review the plan before applying it.
 The packages are published on npm:
 
 ```bash
-npm view ctxcap version       # 1.2.1
-npm view ctxcap-mcp version   # 0.1.5
+npm view ctxcap version       # 1.3.0
+npm view ctxcap-mcp version   # 0.1.6
 ```
 
 Share the npm packages, the GitHub repository, or the pinned GitHub Action:
 
-- CLI: `npx -y ctxcap@1.2.1`
-- MCP: `npx -y ctxcap-mcp@0.1.5`
-- Action: `Naeha-S/ctxcap@v1.2.1`
+- CLI: `npx -y ctxcap@1.3.0`
+- MCP: `npx -y ctxcap-mcp@0.1.6`
+- Action: `Naeha-S/ctxcap@v1.3.0`
 - Repository: <https://github.com/Naeha-S/ctxcap>
 
 For a release post, show a real before/after from another repository, include
