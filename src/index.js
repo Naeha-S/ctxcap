@@ -118,7 +118,7 @@ async function main() {
   for (const file of files) file.baselineTokens = baselineCounts[file.path];
   if (opts.plan) {
     const budget = opts.budget ?? config.budgets.total;
-    const plan = await makePlan({ files, root, config, budget, apply: opts.apply, strictPreserve: opts.strictPreserve, maxCondenseChars: opts.maxCondenseChars, minTokens: opts.minTokens });
+    const plan = await makePlan({ files, root, config, budget, budgetClasses: opts.budgetClasses, apply: opts.apply, strictPreserve: opts.strictPreserve, maxCondenseChars: opts.maxCondenseChars, minTokens: opts.minTokens });
     await savePlan(root, plan);
     console.log(JSON.stringify(plan, null, 2));
     return plan.satisfiable && (!opts.apply || plan.missed?.length === 0) ? 0 : 1;

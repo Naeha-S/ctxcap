@@ -116,7 +116,7 @@ function hashText(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
-export async function makePlan({ files, root, config, budget, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false, maxCondenseChars = 320, minTokens = 20 }) {
+export async function makePlan({ files, root, config, budget, budgetClasses = {}, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false, maxCondenseChars = 320, minTokens = 20 }) {
   if (!Number.isInteger(budget) || budget < 0) {
     const error = new Error('budget must be a non-negative integer');
     error.code = 'BUDGET_INVALID';
@@ -210,15 +210,26 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
   }
   const simulatedTotal = [...simulated.values()].reduce((total, text) => total + countTokens(text), 0);
   const minAchievable = Math.max(0, simulatedTotal);
+  const gatedClasses = new Set(['always', 'startup', ...Object.keys(budgetClasses)]);
+  const gateCurrent = files
+    .filter((file) => gatedClasses.has(file.loadClass ?? 'always'))
+    .reduce((total, file) => total + file.tokens, 0);
+  const gateMinAchievable = [...simulated.entries()]
+    .filter(([file]) => gatedClasses.has(files.find((candidate) => candidate.path === file)?.loadClass ?? 'always'))
+    .reduce((total, [, text]) => total + countTokens(text), 0);
+  const classBudgetsSatisfied = Object.entries(budgetClasses).every(([loadClass, classBudget]) =>
+    files.filter((file) => (file.loadClass ?? 'always') === loadClass)
+      .reduce((total, file) => total + file.tokens, 0) <= classBudget
+  );
   const baselineTotal = files.reduce((total, file) => total + (file.baselineTokens ?? file.tokens), 0);
   const response = {
     schema: 'ctxcap/plan/v2',
     planId: id,
-    satisfiable: minAchievable <= budget,
+    satisfiable: gateMinAchievable <= budget && classBudgetsSatisfied,
     budget,
     current,
     minAchievable,
-    tokensRemaining: Math.max(0, current - budget),
+    tokensRemaining: Math.max(0, gateCurrent - budget),
     truncated: filtered.length > selected.length,
     remainingFindings: Math.max(0, filtered.length - selected.length),
     approximate: true,
