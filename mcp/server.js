@@ -9,6 +9,7 @@ import { countTokens } from '../src/tokenize.js';
 import { loadBaseline } from '../src/baseline.js';
 import { buildReport, TOOL_NAME } from '../src/report.js';
 import { suggest } from '../src/suggest.js';
+import { VERSION } from '../src/version.js';
 
 const PROTOCOL = '2024-11-05';
 const ROOT = process.cwd();
@@ -72,7 +73,7 @@ async function handle(msg) {
       return reply(id, {
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: TOOL_NAME, version: '1.0.1' }
+        serverInfo: { name: TOOL_NAME, version: VERSION }
       });
     }
     if (method === 'tools/list') return reply(id, { tools: TOOLS });

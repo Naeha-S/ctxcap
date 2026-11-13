@@ -8,6 +8,7 @@ import { countTokens } from './tokenize.js';
 import { loadBaseline, saveBaseline, BASELINE_FILE } from './baseline.js';
 import { buildReport, renderText, renderSarif, exitCodeFor } from './report.js';
 import { suggest } from './suggest.js';
+import { VERSION } from './version.js';
 
 const HELP = `ctxcap — token budget linter for context files
 
@@ -56,7 +57,7 @@ function parseArgs(argv) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) { console.log(HELP); return 0; }
-  if (opts.version) { console.log('1.0.1'); return 0; }
+  if (opts.version) { console.log(VERSION); return 0; }
 
   const root = path.resolve(opts.root);
   const config = await loadConfig(root, opts.config);

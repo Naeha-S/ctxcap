@@ -1,6 +1,6 @@
 # `ctxcap` — Next Steps & Launch Checklist
 
-## 1. Publish `ctxcap@0.1.1`
+## 1. Publish `ctxcap@1.0.1` and `ctxcap-mcp@0.1.1`
 
 All docs (`README.md`, `AGENTS.md`, `llms.txt`), version numbers, and workspaces are updated and committed. The tarball is verified (12.3 kB, 19 files, no test leaks).
 
@@ -8,12 +8,15 @@ Run from the root of `tokenlint`:
 
 ```powershell
 npm publish --access public
+npm publish --workspace packages/ctxcap-mcp --access public
 ```
 
 Verify propagation:
 
 ```powershell
 npm view ctxcap version
+# Expected: 1.0.1
+npm view ctxcap-mcp version
 # Expected: 0.1.1
 ```
 
@@ -27,16 +30,16 @@ In a fresh temp directory:
 cd $env:TEMP; mkdir cold_test; cd cold_test
 
 # 1. CLI verification
-npx -y ctxcap@0.1.1 --version
-# Expected: 0.1.1
+npx -y ctxcap@1.0.1 --version
+# Expected: 1.0.1
 
 # 2. JSON output verification
-npx -y ctxcap@0.1.1 --json
+npx -y ctxcap@1.0.1 --json
 # Expected: exit 0, empty files: []
 
 # 3. Direct MCP runner verification
 node -e "const {spawn} = require('child_process'); const p = spawn('npx', ['-y', 'ctxcap-mcp'], {shell: true}); const b = JSON.stringify({jsonrpc: '2.0', id: 1, method: 'initialize', params: {}}); p.stdout.on('data', d => { console.log(d.toString()); process.exit(0); }); p.stdin.write('Content-Length: ' + Buffer.byteLength(b) + '\r\n\r\n' + b); setTimeout(() => { console.error('TIMEOUT'); process.exit(1); }, 15000);"
-# Expected: serverInfo with name: "ctxcap", version: "0.1.1"
+# Expected: serverInfo with name: "ctxcap", version: "1.0.1"
 ```
 
 ---
@@ -67,8 +70,7 @@ Once the 24 hours have passed and cold-shell tests remain rock-solid:
 > - **Zero config, offline, zero network / telemetry**: pins `gpt-tokenizer`, no API keys required.
 > - **One command**: `npx -y ctxcap --json` (outputs machine-readable token counts, deltas against git merge-base, and compression suggestions).
 > - **MCP Server**: `npx -y ctxcap-mcp` exposes `measure_context` and `trim_to_budget` directly to Claude / Cursor / any MCP client.
-> - **GitHub Action**: Sticky PR comments and SARIF code scanning annotations (`uses: Naeha-S/ctxcap@v0.1.0`).
+> - **GitHub Action**: Sticky PR comments and SARIF code scanning annotations (`uses: Naeha-S/ctxcap@v1.0.1`).
 >
 > Repo: https://github.com/Naeha-S/ctxcap
 > Feedback and bug reports welcome!
-
