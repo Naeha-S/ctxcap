@@ -176,3 +176,29 @@ test('default finding floor includes a small reclaimable paragraph', async () =>
   const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
   assert.ok(plan.plan.some((finding) => finding.tokensFreed >= 20));
 });
+
+test('preserve classification ignores mid-sentence keywords and honors lists and markers', async () => {
+  const data = await fixtureFromDirectory('preserve-classification');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.equal(plan.preserve.some((span) => span.startLine === 1), false);
+  assert.ok(plan.preserve.some((span) => span.startLine === 3));
+  assert.ok(plan.preserve.some((span) => span.startLine === 7));
+});
+
+test('apply prepares all files before renaming any file', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'ctxcap-atomic-'));
+  const first = 'Remove this first file paragraph.\n';
+  await writeFile(path.join(root, 'first.md'), first);
+  const plan = {
+    planId: 'atomic',
+    plan: [
+      { id: 'first', file: 'first.md', startLine: 1, endLine: 1, action: 'delete' },
+      { id: 'second', file: 'missing.md', startLine: 1, endLine: 1, action: 'delete' }
+    ],
+    _internal: { postHashes: {} }
+  };
+  const result = await applyPlan(plan, root);
+  assert.deepEqual(result.applied, []);
+  assert.deepEqual(result.missed.sort(), ['first', 'second']);
+  assert.equal(await readFile(path.join(root, 'first.md'), 'utf8'), first);
+});

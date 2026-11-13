@@ -17,6 +17,7 @@ export const DEFAULTS = {
     '.cursor/rules/**'
   ],
   ignore: [],
+  preserveHeadings: ['Never', 'Constraint', 'Constraints', 'Must', 'Rule', 'Rules'],
   budgets: {},
   mode: 'delta',
   failOn: null
@@ -54,11 +55,15 @@ export async function loadConfig(root, configPath) {
     const raw = JSON.parse(await readFile(file, 'utf8'));
     if (raw.include !== undefined) assertSafePatterns(raw.include, 'include');
     if (raw.ignore !== undefined) assertSafePatterns(raw.ignore, 'ignore');
+    if (raw.preserveHeadings !== undefined && (!Array.isArray(raw.preserveHeadings) || raw.preserveHeadings.some((value) => typeof value !== 'string'))) {
+      throw new Error('"preserveHeadings" must be an array of strings');
+    }
     return {
       ...DEFAULTS,
       ...raw,
       include: raw.include ?? DEFAULTS.include,
       ignore: raw.ignore ?? DEFAULTS.ignore,
+      preserveHeadings: raw.preserveHeadings ?? DEFAULTS.preserveHeadings,
       budgets: raw.budgets ?? {}
     };
   } catch (err) {

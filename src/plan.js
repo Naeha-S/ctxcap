@@ -6,8 +6,7 @@ import { findStale } from './stale.js';
 
 const PLAN_DIR = '.ctxcap/plans';
 const PLAN_TTL_MS = 24 * 60 * 60 * 1000;
-const PRESERVE_HEADING = /^#{1,6}\s+(Never|Constraints?|Must|Rules?)\b/i;
-const LOAD_BEARING = /\b(MUST|NEVER|ALWAYS|do not|never|always)\b/i;
+const LOAD_BEARING = /(?:^|\n)\s*(?:[-*+]|\d+[.)])?\s*(MUST|NEVER|ALWAYS|do not|never|always)\b/i;
 
 function normalized(line) {
   return line.replace(/[`*_>#-]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -44,18 +43,24 @@ function paragraphSpans(file) {
   return spans;
 }
 
-function classifySpan(span, file) {
-  const before = file.text.split('\n').slice(0, span.start - 1).reverse().find((line) => line.trim());
-  const heading = before && PRESERVE_HEADING.test(before.trim());
+function classifySpan(span, file, config = {}) {
+  const lines = file.text.split('\n');
+  const before = lines.slice(0, span.start - 1).reverse().find((line) => line.trim());
+  const headingText = before?.trim().replace(/^#{1,6}\s+/, '');
+  const headingPatterns = config.preserveHeadings ?? ['Never', 'Constraint', 'Constraints', 'Must', 'Rule', 'Rules'];
+  const heading = headingText && headingPatterns.some((source) => {
+    try { return new RegExp(`^${source}$`, 'i').test(headingText); } catch { return false; }
+  });
   const text = span.lines.join('\n');
-  return { loadBearing: Boolean(heading || LOAD_BEARING.test(text)), text };
+  const marker = lines.slice(0, span.start - 1).reverse().find((line) => line.trim())?.trim() === '<!-- ctxcap:preserve -->';
+  return { loadBearing: Boolean(heading || marker || LOAD_BEARING.test(text)), text };
 }
 
-function preserveSpans(files) {
+function preserveSpans(files, config) {
   const preserve = [];
   for (const file of files) {
     for (const span of paragraphSpans(file)) {
-      const { loadBearing } = classifySpan(span, file);
+      const { loadBearing } = classifySpan(span, file, config);
       if (loadBearing) preserve.push({ file: file.path, startLine: span.start, endLine: span.end, reason: 'load-bearing instruction' });
     }
   }
@@ -123,7 +128,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     throw error;
   }
   const current = files.reduce((total, file) => total + file.tokens, 0);
-  const preserve = preserveSpans(files);
+  const preserve = preserveSpans(files, config);
   const preserveText = Object.fromEntries(preserve.map((span) => [
     `${span.file}:${span.startLine}:${span.endLine}`,
     files.find((file) => file.path === span.file).text.split('\n').slice(span.startLine - 1, span.endLine).join('\n')
@@ -134,7 +139,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
   for (const finding of stale) {
     const paragraph = paragraphSpans(files.find((file) => file.path === finding.path)).find((span) => span.start <= finding.line && span.end >= finding.line);
     if (!paragraph) continue;
-    const { loadBearing } = classifySpan(paragraph, files.find((file) => file.path === finding.path));
+    const { loadBearing } = classifySpan(paragraph, files.find((file) => file.path === finding.path), config);
     const planned = findingFor(finding.path, paragraph.start, paragraph.end, `${finding.rule[0].toLowerCase()}${finding.rule.slice(1)}Block`, countTokens(paragraph.lines.join('\n')), finding.rule === 'stale-path' ? 0.98 : 0.92, `${finding.text} (${finding.rule})`, loadBearing);
     planned._sourceText = paragraph.lines.join('\n');
     candidates.push(planned);
@@ -147,7 +152,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
       if (!key) continue;
       if (seen.has(key) || globalSeen.has(key)) {
         const canonical = seen.get(key) ?? globalSeen.get(key);
-        const { loadBearing } = classifySpan(span, file);
+        const { loadBearing } = classifySpan(span, file, config);
         const canonicalKey = `${canonical.file}:${canonical.start}:${canonical.end}`;
         const duplicate = findingFor(file.path, span.start, span.end, 'duplicateRule', countTokens(span.lines.join('\n')), 0.92, `duplicate of ${canonicalKey}`, loadBearing, 'deleteKeepingCanonical');
         duplicate.canonical = canonicalKey;
@@ -249,9 +254,10 @@ export async function applyPlan(plan, root) {
     if (!byFile.has(finding.file)) byFile.set(finding.file, []);
     byFile.get(finding.file).push(finding);
   }
-  for (const [file, findings] of byFile) {
-    const target = path.join(root, file);
-    try {
+  const prepared = [];
+  try {
+    for (const [file, findings] of byFile) {
+      const target = path.join(root, file);
       const original = await readFile(target, 'utf8');
       const lines = original.split('\n');
       const sorted = [...findings].sort((a, b) => b.startLine - a.startLine);
@@ -265,13 +271,18 @@ export async function applyPlan(plan, root) {
       }
       const temp = `${target}.ctxcap-${plan.planId}.tmp`;
       await writeFile(temp, lines.join('\n'), 'utf8');
-      await rename(temp, target);
-      plan._internal.postHashes[file] = hashText(lines.join('\n'));
-      applied.push(...findings.map((finding) => finding.id));
-    } catch {
-      try { await unlink(`${target}.ctxcap-${plan.planId}.tmp`); } catch {}
-      missed.push(...findings.map((finding) => finding.id));
+      prepared.push({ file, findings, target, temp, text: lines.join('\n') });
     }
+    for (const item of prepared) {
+      await rename(item.temp, item.target);
+      plan._internal.postHashes[item.file] = hashText(item.text);
+      applied.push(...item.findings.map((finding) => finding.id));
+    }
+  } catch {
+    for (const item of prepared) {
+      try { await unlink(item.temp); } catch {}
+    }
+    missed.push(...plan.plan.map((finding) => finding.id));
   }
   return { applied, missed };
 }
