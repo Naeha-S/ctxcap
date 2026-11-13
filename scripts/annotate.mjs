@@ -15,6 +15,9 @@ export function annotations(report) {
   if (report.totalBudget !== null && report.total > report.totalBudget) {
     out.push(`::warning title=ctxcap::${escData(`total ${report.total} tokens exceeds budget ${report.totalBudget}`)}`);
   }
+  for (const finding of report.findings ?? []) {
+    out.push(`::${finding.severity === 'error' ? 'error' : 'warning'} file=${escProp(finding.path)},line=${finding.line},title=ctxcap ${escData(finding.rule)}::${escData(`${finding.text} (${finding.reclaimableTokens} reclaimable tokens)`)}`);
+  }
   return out;
 }
 
@@ -27,6 +30,7 @@ export function summary(report) {
     `### ctxcap: ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
     '',
     rows.length ? ['| File | Tokens | Delta |', '| --- | --- | --- |', ...rows].join('\n') : '_No token change._',
+    report.findings?.length ? `**Stale references:** ${report.findings.length} findings, ${report.reclaimableTotal} reclaimable tokens` : '',
     ''
   ].join('\n');
 }

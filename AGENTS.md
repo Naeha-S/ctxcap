@@ -21,7 +21,7 @@ sections and stale instructions. Re-run until `over` is false.
 
 ## MCP
 npx -y ctxcap-mcp
-Tools: measure_context, trim_to_budget
+Tools: measure_context, context_budget_plan, context_budget_verify, trim_to_budget
 
 ## Constraints
 No network. No telemetry. No API key. Counts are approximate (±5%) —

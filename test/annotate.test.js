@@ -4,14 +4,16 @@ import { annotations, escProp, summary } from '../scripts/annotate.mjs';
 
 const report = {
   approximate: true, total: 300, totalBudget: 200, delta: 50, over: true,
-  files: [{ path: 'prompts/a,b:c.md', tokens: 300, delta: 50, budget: 100 }]
+  files: [{ path: 'prompts/a,b:c.md', tokens: 300, delta: 50, budget: 100 }],
+  findings: [{ rule: 'stale-path', severity: 'error', path: 'AGENTS.md', line: 4, text: 'Use `src/missing.js`.', reclaimableTokens: 12 }],
 };
 
 test('emits escaped warning per over-budget file plus total', () => {
   const out = annotations(report);
-  assert.equal(out.length, 2);
+  assert.equal(out.length, 3);
   assert.ok(out[0].startsWith('::warning file=prompts/a%2Cb%3Ac.md,line=1'));
   assert.ok(out[1].includes('exceeds budget 200'));
+  assert.ok(out[2].includes('AGENTS.md,line=4'));
 });
 
 test('escapes newlines', () => {

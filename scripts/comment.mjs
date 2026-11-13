@@ -29,6 +29,9 @@ const body = [
   rows.length
     ? ['| File | Tokens | Delta |', '| --- | --- | --- |', ...rows].join('\n')
     : '_No token change._',
+  report.findings?.length
+    ? ['', `**Stale references:** ${report.findings.length} findings, ${report.reclaimableTotal} reclaimable tokens`, '', ...report.findings.map((f) => `- \`${f.path}:${f.line}\` **${f.rule}** — ${f.text.replace(/[<>`]/g, '')} (${f.reclaimableTokens} reclaimable tokens)`)].join('\n')
+    : '',
   report.suggestions?.length
     ? ['', '<details><summary>Suggestions</summary>', '', ...report.suggestions.map((s) => `- \`${s.path.replace(/[`|]/g, '')}\` — ${s.reason.replace(/[<>`]/g, '')}`), '', '</details>'].join('\n')
     : ''

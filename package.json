@@ -1,6 +1,6 @@
 {
   "name": "ctxcap",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "Token budget linter for prompt and context files. Built for agents.",
   "type": "module",
   "workspaces": [

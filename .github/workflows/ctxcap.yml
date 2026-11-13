@@ -10,5 +10,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      - uses: Naeha-S/ctxcap@v1.0.1
+      - uses: Naeha-S/ctxcap@v1.2.0
         with: { fail-on: increase }

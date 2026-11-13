@@ -21,3 +21,10 @@ npx -y ctxcap-mcp
 - Exit 0 clean, 1 breach, 2 error
 - Counts approximate, gpt-tokenizer pinned
 - Defaults cover CLAUDE.md, AGENTS.md, prompts/**, .cursor/rules/**
+- `--stale` finds dead paths, commands, globs, and missing references
+- `--fail-on stale` enables a stale-reference CI gate
+- Loop: context_budget_plan -> apply in order by line range -> context_budget_verify -> stop at tokensRemaining <= 0.
+- Never rewrite a context file from scratch. Splice by startLine/endLine.
+- Never cut a span in `preserve`.
+- If satisfiable is false, report minAchievable and stop.
+- Measure deltas, not absolutes. Counts are approximate (+/-5%).

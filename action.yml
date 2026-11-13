@@ -6,7 +6,7 @@ branding:
   color: purple
 inputs:
   fail-on:
-    description: increase | budget | never
+    description: increase | budget | stale | never
     required: false
     default: never
   config:
@@ -30,6 +30,14 @@ inputs:
       scanning enabled; silently no-ops on private repos without GHAS)
     required: false
     default: "true"
+  stale:
+    description: Run the stale-reference pass
+    required: false
+    default: "false"
+  stale-glob:
+    description: Include globs that match zero files in the stale-reference pass
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -94,14 +102,21 @@ runs:
         CONFIG: ${{ inputs.config }}
         FAIL_ON: ${{ inputs['fail-on'] }}
         BASE: ${{ steps.base.outputs.sha }}
+        STALE: ${{ inputs.stale }}
+        STALE_GLOB: ${{ inputs['stale-glob'] }}
       run: |
         code=0
+        stale_args=""
+        if [ "$STALE" = "true" ]; then stale_args="$stale_args --stale"; fi
+        if [ "$STALE_GLOB" = "true" ]; then stale_args="$stale_args --stale-glob"; fi
         node "${{ github.action_path }}/src/index.js" \
           --json --baseline "$BASE" --config "$CONFIG" --fail-on "$FAIL_ON" \
+          $stale_args \
           > "$RUNNER_TEMP/ctxcap-report.json" || code=$?
         echo "code=$code" >> "$GITHUB_OUTPUT"
         node "${{ github.action_path }}/src/index.js" \
           --sarif --baseline "$BASE" --config "$CONFIG" \
+          $stale_args \
           > "$RUNNER_TEMP/ctxcap.sarif" || true
 
     - name: Annotate and summarize

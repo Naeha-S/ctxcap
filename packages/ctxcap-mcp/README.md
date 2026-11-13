@@ -24,5 +24,6 @@ Or configure in your MCP client:
 ## Tools
 
 - `measure_context`: Measure token cost and delta of context files.
-- `trim_to_budget`: Report which context files exceed budget, largest first.
-
+- `context_budget_plan`: Return a ranked, deterministic splice plan with safety classifications and preserve spans.
+- `context_budget_verify`: Verify that a plan landed without drift or preserve-span violations.
+- `trim_to_budget`: Deprecated alias for `context_budget_plan`; always returns `apply: false`.

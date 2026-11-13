@@ -3,7 +3,7 @@
   "$id": "https://raw.githubusercontent.com/Naeha-S/ctxcap/main/schema/report.schema.json",
   "title": "ctxcap report",
   "type": "object",
-  "required": ["schema", "approximate", "tokenizer", "total", "delta", "over", "files"],
+  "required": ["schema", "approximate", "tokenizer", "total", "delta", "over", "files", "findings", "reclaimableTotal"],
   "properties": {
     "schema": { "const": "ctxcap/v1" },
     "approximate": { "type": "boolean" },
@@ -33,6 +33,23 @@
         "required": ["path", "reason"],
         "properties": { "path": { "type": "string" }, "reason": { "type": "string" } }
       }
-    }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "severity", "path", "line", "text", "reclaimableTokens", "fix"],
+        "properties": {
+          "rule": { "type": "string" },
+          "severity": { "enum": ["error", "warning"] },
+          "path": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" },
+          "reclaimableTokens": { "type": "integer", "minimum": 0 },
+          "fix": { "const": "delete" }
+        }
+      }
+    },
+    "reclaimableTotal": { "type": "integer", "minimum": 0 }
   }
 }

@@ -39,7 +39,8 @@ test('MCP initialize and tools call return the current package version and repor
     assert.equal(initialized.result.serverInfo.version, packageJson.version);
 
     const listed = await request(proc, { jsonrpc: '2.0', id: 2, method: 'tools/list' });
-    assert.deepEqual(listed.result.tools.map((tool) => tool.name), ['measure_context', 'trim_to_budget']);
+    assert.deepEqual(listed.result.tools.map((tool) => tool.name), ['measure_context', 'context_budget_plan', 'context_budget_verify', 'trim_to_budget']);
+    assert.equal(listed.result.tools[1].description, 'Call before appending more than ~50 lines to a context file, or when a file exceeds its budget. Returns a ranked splice plan. Apply entries in order by line range; never rewrite the file from scratch. If satisfiable is false, report minAchievable and stop. Never cut spans listed in preserve.');
 
     const measured = await request(proc, {
       jsonrpc: '2.0', id: 3, method: 'tools/call',
@@ -47,6 +48,26 @@ test('MCP initialize and tools call return the current package version and repor
     });
     const report = JSON.parse(measured.result.content[0].text);
     assert.deepEqual(report.files.map((file) => file.path), ['AGENTS.md']);
+
+    const planned = await request(proc, {
+      jsonrpc: '2.0', id: 4, method: 'tools/call',
+      params: { name: 'context_budget_plan', arguments: { budget: 1 } }
+    });
+    const plan = JSON.parse(planned.result.content[0].text);
+    assert.equal(plan.schema, 'ctxcap/plan/v1');
+    assert.equal(Object.hasOwn(plan.plan[0] ?? {}, 'sourceText'), false);
+    const verified = await request(proc, {
+      jsonrpc: '2.0', id: 5, method: 'tools/call',
+      params: { name: 'context_budget_verify', arguments: { planId: plan.planId } }
+    });
+    assert.equal(verified.result.satisfied, false);
+
+    const alias = await request(proc, {
+      jsonrpc: '2.0', id: 6, method: 'tools/call',
+      params: { name: 'trim_to_budget', arguments: { budget: 1 } }
+    });
+    const aliasPlan = JSON.parse(alias.result.content[0].text);
+    assert.equal(aliasPlan.apply, false);
   } finally {
     proc.kill();
   }

@@ -4,3 +4,4 @@ ctxcap-report.json
 ctxcap.sarif
 tokenlint-report.json
 tokenlint.sarif
+.ctxcap/

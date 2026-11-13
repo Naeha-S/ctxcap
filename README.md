@@ -1,24 +1,88 @@
 # ctxcap
 
-Token budget linter for prompt and context files. Built for agents: one command, JSON out, zero config.
+Offline token-budget linter for agent context files. It measures `CLAUDE.md`,
+`AGENTS.md`, `prompts/**`, and `.cursor/rules/**`, finds references that no
+longer resolve, and hands your agent a ranked, verifiable plan to get back
+under budget.
+
+No config, API key, network, or telemetry. Node >= 20. Two runtime
+dependencies: `fast-glob` and `gpt-tokenizer`.
 
 ```bash
-npx -y ctxcap --json
+npx ctxcap --json
 ```
 
-Two dependencies (`fast-glob`, `gpt-tokenizer`), both audited, neither phones home. Runs offline. No API key. No telemetry.
+## The loop
+
+Context files get trimmed by agents badly: the agent rewrites the file from
+memory, drops the `## Never` rules, hits the budget, and ships a worse file.
+`ctxcap` closes that loop with line ranges, safety flags, and verification.
+
+```bash
+npx ctxcap --plan --budget 40000              # ranked plan, JSON
+npx ctxcap --plan --budget 40000 --apply      # splice atomically
+npx ctxcap --verify <planId>                  # catch drift and violations
+```
+
+Three rules for the agent:
+
+1. Splice by `startLine`/`endLine`. Never rewrite a file from scratch.
+2. Never cut a span listed in `preserve`.
+3. If `satisfiable` is false, report `minAchievable` and stop.
+
+### Where plans live
+
+CLI plans are written to `.ctxcap/plans/<planId>.json`. Add `.ctxcap/` to
+`.gitignore`; plans are local working state, not source. Plans expire after
+24 hours. If a plan is missing or expired, verification returns the structured
+`PLAN_EXPIRED` error and you should generate a new plan. Run `--apply` on a
+clean tree, then review with `git diff` before committing. Do not run
+`--apply` in CI.
+
+Agents can fetch the five-line loop from [`llms.txt`](llms.txt).
+
+## Before and after
+
+```text
+$ npx ctxcap --plan --budget 2000
+satisfiable: true   current: 3000   minAchievable: 1180   tokensRemaining: 1000
+
+  1. CLAUDE.md:88-103   -412  stalePathBlock    refs src/lib/auth, moved to src/core/auth
+  2. AGENTS.md:12-34    -388  duplicateRule     duplicate of CLAUDE.md:41-63
+  3. CLAUDE.md:150-171  -295  condense          prose under ## Background
+
+preserve: AGENTS.md:4-9 (under ## Never), CLAUDE.md:1-30 (paths resolve)
+```
+
+Apply, verify, done: **3,000 -> 1,940 tokens, all `## Never` rules intact.**
+
+Context can be stale as well as large. Run the dead-reference pass to find
+paths, commands, globs, and `@path`/`#path` references that no longer resolve:
+
+```bash
+npx -y ctxcap --stale --json
+```
+
+It reports reclaimable tokens and emits inline SARIF annotations with
+`--sarif`. Use `--fail-on stale` to gate CI, or `--stale-fix` to print a
+deletion diff without modifying files.
+
+The stale pass skips fenced code blocks and suspicious tokens containing `~`,
+`$`, `://`, or `<`. Add `<!-- ctxcap-ignore -->` to a line to suppress that
+line. `--stale-fix` prints a deletion diff; there is deliberately no
+`--stale --apply` mode.
 
 ## Why
 
 Agent context files — `CLAUDE.md`, `AGENTS.md`, `prompts/**`, `.cursor/rules/` — grow every sprint. They get pasted into every request and silently burn your context window. Nothing gates them at the repo level.
 
-`ctxcap` fixes that: it measures context files, tracks token deltas against a committed baseline, fails CI when you define a budget, and exposes an MCP server so agents can check themselves.
+`ctxcap` fixes that: it measures context files, tracks token deltas against a committed baseline, finds stale references, produces ranked plans, verifies edits, fails CI when you define a budget, and exposes an MCP server so agents can check themselves.
 
 ## How this differs from `tokenlint`
 
 `tokenlint` hooks your editor and reminds you per turn about wasteful habits. `ctxcap` gates the repo: it measures context files against a committed baseline, reports the delta on every PR, and fails only when you ask it to. Different layer — CI and review, not keystrokes.
 
-No baseline, no SARIF, no MCP surface there. If you want per-turn nudges inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
+No baseline, stale-reference pass, ranked plan, verify step, SARIF, or MCP surface there. If you want per-turn nudges inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
 
 ## Install
 
@@ -33,6 +97,39 @@ Or run without installing:
 npx -y ctxcap --json
 ```
 
+## Test another repository
+
+Run the unpinned latest `ctxcap` from the repository you want to inspect. It reads the current
+working directory, so no files need to be copied into the `ctxcap` repository:
+
+```bash
+cd path/to/your-repo
+npx ctxcap --json
+npx ctxcap --stale --json
+npx ctxcap --plan --budget 40000
+```
+
+Use the pinned version in release checks or reproducible CI. For a real edit
+loop, review the plan, apply it, then verify the saved plan:
+
+```bash
+npx -y ctxcap@1.2.0 --plan --budget 40000
+npx -y ctxcap@1.2.0 --plan --budget 40000 --apply
+npx -y ctxcap@1.2.0 --verify <planId>
+```
+
+Start with a baseline when you want pull requests to report growth:
+
+```bash
+npx -y ctxcap@1.2.0 --update-baseline
+git add ctxcap-baseline.json
+git commit -m "Add ctxcap baseline"
+```
+
+Add a `.ctxcap.json` file to customize included paths, ignored paths, or
+budgets. The default scan is intentionally limited to common agent context
+files.
+
 ## CLI
 
 | Flag | Effect |
@@ -40,11 +137,18 @@ npx -y ctxcap --json
 | `--json` | Machine-readable JSON report on stdout |
 | `--sarif` | SARIF 2.1.0 on stdout |
 | `--suggest` | Include compression suggestions |
-| `--fail-on increase\|budget\|never` | When to exit 1 (default: `never`) |
+| `--stale` | Find dead paths, commands, globs, and references |
+| `--stale-glob` | Include globs that match zero files |
+| `--stale-fix` | Print a deletion diff; never writes files |
+| `--fail-on increase\|budget\|stale\|never` | When to exit 1 (default: `never`) |
 | `--baseline <ref>` | Read baseline from a git ref (CI uses merge base automatically) |
 | `--update-baseline` | Write `ctxcap-baseline.json` and exit |
 | `--config <path>` | Config file path (default: `.ctxcap.json`) |
 | `--root <path>` | Working directory (default: `.`) |
+| `--plan` | Print a ranked context-budget edit plan |
+| `--apply` | Apply the generated plan atomically |
+| `--verify <planId>` | Verify a saved plan and preserve spans |
+| `--budget <n>` | Target budget for `--plan` |
 
 Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
 
@@ -82,17 +186,19 @@ steps:
     with: { fail-on: increase }
 ```
 
-**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.0.1`
+**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.2.0`
 
 Inputs:
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `fail-on` | `never` | `increase` \| `budget` \| `never` |
+| `fail-on` | `never` | `increase` \| `budget` \| `stale` \| `never` |
 | `config` | `.ctxcap.json` | Path to config file |
 | `path` | `.` | Root directory to lint |
 | `comment` | `true` | Post sticky PR comment |
 | `upload-sarif` | `true` | Upload SARIF to code scanning |
+| `stale` | `false` | Run the stale-reference pass |
+| `stale-glob` | `false` | Include zero-match globs |
 
 **What you get on every run:**
 - Workflow annotations on over-budget files
@@ -134,7 +240,13 @@ Configure in your MCP client:
 | Tool | Description |
 | --- | --- |
 | `measure_context` | Returns the full JSON report for the current working directory |
-| `trim_to_budget` | Returns the 5 largest files ranked by token count so the agent knows what to compress |
+| `context_budget_plan` | Returns a deterministic ranked splice plan with safety classifications and preserve spans |
+| `context_budget_verify` | Reports missed edits and preserve-span violations after applying a plan |
+| `trim_to_budget` | Deprecated alias for `context_budget_plan`; always returns `apply: false` |
+
+The agent loop is also available as the five-line [`llms.txt`](llms.txt)
+contract. The standalone MCP wrapper keeps plan verification in the same
+server process; the CLI persists plans under `.ctxcap/plans/`.
 
 ## Output schema
 
@@ -155,11 +267,17 @@ Configure in your MCP client:
 }
 ```
 
-Full schema: [`schema/report.schema.json`](schema/report.schema.json).
+Full report schema: [`schema/report.schema.json`](schema/report.schema.json).
+Plan schema: [`schema/plan.schema.json`](schema/plan.schema.json). Plan
+responses include ranked `plan` entries, `preserve` spans, and a `diff`
+summary.
 
 ## Accuracy
 
-Counts use pinned `gpt-tokenizer` — approximate against Claude and Gemini (±5%). Every report carries `"approximate": true` and the tokenizer ID. Compare **deltas**, not absolutes — the delta stays consistent across runs even if the absolute count drifts from your model's exact count.
+Counts, `tokensFreed`, and `confidence` use heuristics and are approximate
+against Claude and Gemini (±5% for token counts). Every report carries
+`"approximate": true` and the tokenizer ID. Compare **deltas**, not absolutes;
+review the plan before applying it.
 
 ## Packages
 
@@ -167,5 +285,25 @@ Counts use pinned `gpt-tokenizer` — approximate against Claude and Gemini (±5
 | --- | --- |
 | [`ctxcap`](https://www.npmjs.com/package/ctxcap) | CLI + GitHub Action + embedded MCP server |
 | [`ctxcap-mcp`](https://www.npmjs.com/package/ctxcap-mcp) | Standalone MCP server wrapper (thin bin, pulls ctxcap as a dep) |
+
+## Publish and share
+
+The packages are published on npm:
+
+```bash
+npm view ctxcap version       # 1.2.0
+npm view ctxcap-mcp version   # 0.1.2
+```
+
+Share the npm packages, the GitHub repository, or the pinned GitHub Action:
+
+- CLI: `npx -y ctxcap@1.2.0`
+- MCP: `npx -y ctxcap-mcp@0.1.2`
+- Action: `Naeha-S/ctxcap@v1.2.0`
+- Repository: <https://github.com/Naeha-S/ctxcap>
+
+For a release post, show a real before/after from another repository, include
+the plan and verification loop, and link to the cold-install results. Ask
+early users to report false positives from their context-file layouts.
 
 MIT.

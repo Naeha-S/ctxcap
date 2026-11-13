@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Naeha-S/ctxcap/main/schema/plan.schema.json",
+  "title": "ctxcap context budget plan",
+  "type": "object",
+  "required": ["schema", "planId", "satisfiable", "budget", "current", "minAchievable", "tokensRemaining", "truncated", "remainingFindings", "approximate", "plan", "preserve", "diff"],
+  "properties": {
+    "schema": { "const": "ctxcap/plan/v1" },
+    "planId": { "type": "string", "pattern": "^[0-9a-f]{6}$" },
+    "satisfiable": { "type": "boolean" },
+    "budget": { "type": "integer", "minimum": 0 },
+    "current": { "type": "integer", "minimum": 0 },
+    "minAchievable": { "type": "integer", "minimum": 0 },
+    "tokensRemaining": { "type": "integer" },
+    "truncated": { "type": "boolean" },
+    "remainingFindings": { "type": "integer", "minimum": 0 },
+    "approximate": { "type": "boolean" },
+    "plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "startLine", "endLine", "kind", "tokensFreed", "confidence", "loadBearing", "rationale", "action"],
+        "properties": {
+          "id": { "type": "string" },
+          "file": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 },
+          "kind": { "type": "string" },
+          "tokensFreed": { "type": "integer", "minimum": 40 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "loadBearing": { "type": "boolean" },
+          "rationale": { "type": "string" },
+          "action": { "enum": ["delete", "deleteKeepingCanonical", "condense"] },
+          "condensedText": { "type": "string" }
+        }
+      }
+    },
+    "preserve": { "type": "array" },
+    "diff": { "type": "object" }
+  }
+}
