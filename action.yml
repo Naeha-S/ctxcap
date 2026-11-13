@@ -25,7 +25,9 @@ inputs:
     required: false
     default: "true"
   upload-sarif:
-    description: Upload SARIF to code scanning (requires security-events: write and code scanning enabled; silently no-ops on private repos without GHAS)
+    description: >-
+      Upload SARIF to code scanning (requires security-events: write and code
+      scanning enabled; silently no-ops on private repos without GHAS)
     required: false
     default: "true"
 runs:
@@ -90,7 +92,7 @@ runs:
       working-directory: ${{ inputs.path }}
       env:
         CONFIG: ${{ inputs.config }}
-        FAIL_ON: ${{ inputs.fail-on }}
+        FAIL_ON: ${{ inputs['fail-on'] }}
         BASE: ${{ steps.base.outputs.sha }}
       run: |
         code=0
@@ -110,7 +112,7 @@ runs:
       run: node "${{ github.action_path }}/scripts/annotate.mjs"
 
     - name: Upload SARIF to code scanning
-      if: always() && inputs.upload-sarif == 'true' && steps.ctx.outputs.can_write == 'true'
+      if: always() && (inputs['upload-sarif'] == 'true' || inputs['upload-sarif'] == true) && steps.ctx.outputs.can_write == 'true'
       uses: github/codeql-action/upload-sarif@v3.28.0
       with:
         sarif_file: ${{ runner.temp }}/ctxcap.sarif
@@ -130,7 +132,7 @@ runs:
 
     - name: Sticky PR comment
       shell: bash
-      if: always() && inputs.comment == 'true' && steps.ctx.outputs.is_pr == 'true' && steps.ctx.outputs.can_write == 'true'
+      if: always() && (inputs.comment == 'true' || inputs.comment == true) && steps.ctx.outputs.is_pr == 'true' && steps.ctx.outputs.can_write == 'true'
       env:
         GITHUB_TOKEN: ${{ github.token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -139,5 +141,5 @@ runs:
 
     - name: Fail on breach
       shell: bash
-      if: steps.measure.outputs.code != '' && steps.measure.outputs.code != '0'
+      if: always() && steps.measure.outputs.code != '' && steps.measure.outputs.code != '0'
       run: exit 1
