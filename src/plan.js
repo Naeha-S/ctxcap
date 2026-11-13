@@ -271,10 +271,12 @@ export async function applyPlan(plan, root) {
       }
       const temp = `${target}.ctxcap-${plan.planId}.tmp`;
       await writeFile(temp, lines.join('\n'), 'utf8');
-      prepared.push({ file, findings, target, temp, text: lines.join('\n') });
+      prepared.push({ file, findings, target, temp, original, text: lines.join('\n') });
     }
+    const renamed = [];
     for (const item of prepared) {
       await rename(item.temp, item.target);
+      renamed.push(item);
       plan._internal.postHashes[item.file] = hashText(item.text);
       applied.push(...item.findings.map((finding) => finding.id));
     }
@@ -282,6 +284,10 @@ export async function applyPlan(plan, root) {
     for (const item of prepared) {
       try { await unlink(item.temp); } catch {}
     }
+    for (const item of prepared.filter((candidate) => applied.some((id) => candidate.findings.some((finding) => finding.id === id)))) {
+      try { await writeFile(item.target, item.original, 'utf8'); } catch {}
+    }
+    applied.length = 0;
     missed.push(...plan.plan.map((finding) => finding.id));
   }
   return { applied, missed };
