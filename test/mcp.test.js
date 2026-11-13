@@ -55,7 +55,7 @@ test('MCP initialize and tools call return the current package version and repor
       params: { name: 'context_budget_plan', arguments: { budget: 1 } }
     });
     const plan = JSON.parse(planned.result.content[0].text);
-    assert.equal(plan.schema, 'ctxcap/plan/v1');
+    assert.equal(plan.schema, 'ctxcap/plan/v2');
     assert.equal(Object.hasOwn(plan.plan[0] ?? {}, 'sourceText'), false);
     const verified = await request(proc, {
       jsonrpc: '2.0', id: 5, method: 'tools/call',

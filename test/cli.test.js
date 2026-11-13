@@ -42,7 +42,7 @@ test('plan and verify use the saved plan contract', async () => {
   const plan = spawnSync('node', [CLI, '--plan', '--budget', '1', '--root', dir], { encoding: 'utf8' });
   assert.equal(plan.status, 1);
   const payload = JSON.parse(plan.stdout);
-  assert.equal(payload.schema, 'ctxcap/plan/v1');
+  assert.equal(payload.schema, 'ctxcap/plan/v2');
   const verify = spawnSync('node', [CLI, '--verify', payload.planId, '--root', dir], { encoding: 'utf8' });
   assert.equal(verify.status, 1);
   assert.equal(JSON.parse(verify.stdout).satisfied, false);

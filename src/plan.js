@@ -138,14 +138,25 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     for (const group of matching) groups.splice(groups.indexOf(group), 1);
     groups.push(merged);
   }
-  const allCuttable = groups.reduce((total, group) => {
-    const best = [...group].sort((a, b) => b.confidence - a.confidence)[0];
-    return total + best.tokensFreed;
-  }, 0);
-  const minAchievable = Math.max(0, current - allCuttable);
+  const cuttable = groups.map((group) => [...group].sort((a, b) => b.confidence - a.confidence)[0]);
+  const simulated = new Map(files.map((file) => [file.path, file.text]));
+  const findingsByFile = new Map();
+  for (const finding of cuttable) {
+    if (!findingsByFile.has(finding.file)) findingsByFile.set(finding.file, []);
+    findingsByFile.get(finding.file).push(finding);
+  }
+  for (const [file, findings] of findingsByFile) {
+    const lines = simulated.get(file).split('\n');
+    for (const finding of [...findings].sort((a, b) => b.startLine - a.startLine)) {
+      lines.splice(finding.startLine - 1, finding.endLine - finding.startLine + 1, ...(finding.action === 'condense' ? [finding.condensedText] : []));
+    }
+    simulated.set(file, lines.join('\n'));
+  }
+  const simulatedTotal = [...simulated.values()].reduce((total, text) => total + countTokens(text), 0);
+  const minAchievable = Math.max(0, simulatedTotal);
   const baselineTotal = files.reduce((total, file) => total + (file.baselineTokens ?? file.tokens), 0);
   const response = {
-    schema: 'ctxcap/plan/v1',
+    schema: 'ctxcap/plan/v2',
     planId: id,
     satisfiable: minAchievable <= budget,
     budget,

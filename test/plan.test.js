@@ -82,10 +82,10 @@ async function fixtureFromDirectory(name) {
 
 test('condense accounting uses net tokens and makes inflated budgets unsatisfiable', async () => {
   const data = await fixtureFromDirectory('condense-savings-accounting');
-  const fullSpanTokens = data.files[0].tokens;
   const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 0 });
   const finding = plan.plan.find((entry) => entry.action === 'condense');
   assert.ok(finding);
+  const fullSpanTokens = countTokens(plan._internal.sources[finding.id]);
   assert.equal(finding.replacementTokens, countTokens(finding.condensedText));
   assert.equal(finding.tokensFreed, fullSpanTokens - finding.replacementTokens);
 
