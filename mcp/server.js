@@ -72,7 +72,7 @@ async function handle(msg) {
       return reply(id, {
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: TOOL_NAME, version: '0.1.0' }
+        serverInfo: { name: TOOL_NAME, version: '0.1.1' }
       });
     }
     if (method === 'tools/list') return reply(id, { tools: TOOLS });

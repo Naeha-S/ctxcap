@@ -20,7 +20,7 @@ sections and stale instructions. Re-run until `over` is false.
 0 clean, 1 breach, 2 error. Always pass --json; never rely on text output.
 
 ## MCP
-npx -y -p ctxcap@latest ctxcap-mcp
+npx -y ctxcap-mcp
 Tools: measure_context, trim_to_budget
 
 ## Constraints

@@ -6,7 +6,7 @@
 npx -y ctxcap --json
 
 ## MCP
-npx -y -p ctxcap@latest ctxcap-mcp
+npx -y ctxcap-mcp
 
 ## Docs
 - README.md: usage, config, exit codes

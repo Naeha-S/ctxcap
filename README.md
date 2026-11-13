@@ -85,10 +85,10 @@ Code scanning requires GitHub Advanced Security on private repos; SARIF upload s
 
 ## MCP
 
-Run directly via `npx -y -p ctxcap@latest ctxcap-mcp` or configure in your client:
+Run directly via `npx -y ctxcap-mcp` or configure in your client:
 
 ```json
-{ "mcpServers": { "ctxcap": { "command": "npx", "args": ["-y", "-p", "ctxcap@latest", "ctxcap-mcp"] } } }
+{ "mcpServers": { "ctxcap": { "command": "npx", "args": ["-y", "ctxcap-mcp"] } } }
 ```
 
 Tools: `measure_context`, `trim_to_budget`.

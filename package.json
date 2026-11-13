@@ -1,8 +1,11 @@
 {
   "name": "ctxcap",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Token budget linter for prompt and context files. Built for agents.",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
     "ctxcap": "src/index.js",
     "ctxcap-mcp": "mcp/server.js"

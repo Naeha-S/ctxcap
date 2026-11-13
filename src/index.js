@@ -56,7 +56,7 @@ function parseArgs(argv) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) { console.log(HELP); return 0; }
-  if (opts.version) { console.log('0.1.0'); return 0; }
+  if (opts.version) { console.log('0.1.1'); return 0; }
 
   const root = path.resolve(opts.root);
   const config = await loadConfig(root, opts.config);
