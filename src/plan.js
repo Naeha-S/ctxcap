@@ -48,6 +48,23 @@ function overlaps(a, b) {
   return a.file === b.file && a.startLine <= b.endLine && b.startLine <= a.endLine;
 }
 
+function bestNonOverlappingCandidates(candidates) {
+  const groups = [];
+  for (const finding of candidates) {
+    const matching = groups.filter((group) => group.some((candidate) => overlaps(candidate, finding)));
+    if (!matching.length) {
+      groups.push([finding]);
+      continue;
+    }
+    const merged = [finding, ...matching.flat()];
+    for (const group of matching) groups.splice(groups.indexOf(group), 1);
+    groups.push(merged);
+  }
+  return groups.map((group) => [...group].sort((a, b) =>
+    b.confidence - a.confidence || a.file.localeCompare(b.file) || a.startLine - b.startLine
+  )[0]);
+}
+
 function planId(findings) {
   const input = findings.map((f) => `${f.file}:${f.startLine}:${f.endLine}:${f.kind}`).sort().join('\n');
   return createHash('sha256').update(input).digest('hex').slice(0, 6);
@@ -127,18 +144,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     const removable = [...selected].sort((a, b) => (a.action === 'condense') - (b.action === 'condense') || a.confidence - b.confidence)[0];
     selected = selected.filter((finding) => finding !== removable);
   }
-  const groups = [];
-  for (const finding of filtered.filter((candidate) => !candidate.loadBearing)) {
-    const matching = groups.filter((group) => group.some((candidate) => overlaps(candidate, finding)));
-    if (!matching.length) {
-      groups.push([finding]);
-      continue;
-    }
-    const merged = [finding, ...matching.flat()];
-    for (const group of matching) groups.splice(groups.indexOf(group), 1);
-    groups.push(merged);
-  }
-  const cuttable = groups.map((group) => [...group].sort((a, b) => b.confidence - a.confidence)[0]);
+  const cuttable = bestNonOverlappingCandidates(filtered.filter((candidate) => !candidate.loadBearing));
   const simulated = new Map(files.map((file) => [file.path, file.text]));
   const findingsByFile = new Map();
   for (const finding of cuttable) {
