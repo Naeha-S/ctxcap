@@ -25,3 +25,4 @@ Or configure in your MCP client:
 
 - `measure_context`: Measure token cost and delta of context files.
 - `trim_to_budget`: Report which context files exceed budget, largest first.
+
