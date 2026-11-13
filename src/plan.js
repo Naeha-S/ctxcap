@@ -185,7 +185,8 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
   attachInternal(response, {
     sources: Object.fromEntries(selected.map((finding) => [finding.id, finding._sourceText])),
     preserveText,
-    postHashes: {}
+    postHashes: {},
+    fileTokens: Object.fromEntries(files.map((file) => [file.path, file.tokens]))
   });
   for (const finding of selected) delete finding._sourceText;
   if (apply) {
@@ -254,7 +255,7 @@ export async function loadPlan(root, planId) {
       error.fix = 'generate a new plan';
       throw error;
     }
-    const internal = plan._internal ?? { sources: {}, preserveText: {}, postHashes: {} };
+    const internal = plan._internal ?? { sources: {}, preserveText: {}, postHashes: {}, fileTokens: {} };
     delete plan._internal;
     return attachInternal(plan, internal);
   } catch (error) {
@@ -272,28 +273,38 @@ export async function verifyPlan(plan, root) {
   const violations = [];
   const postHashes = plan._internal?.postHashes ?? {};
   const driftedFiles = new Set();
+  const fileTexts = new Map();
   for (const [file, expected] of Object.entries(postHashes)) {
     try {
       const current = await readFile(path.join(root, file), 'utf8');
+      fileTexts.set(file, current);
       if (hashText(current) !== expected) driftedFiles.add(file);
     } catch {
       driftedFiles.add(file);
     }
   }
   for (const finding of plan.plan) {
-    if (plan.applied?.includes(finding.id) && driftedFiles.has(finding.file)) {
+    if (!fileTexts.has(finding.file) && !driftedFiles.has(finding.file)) {
+      try {
+        fileTexts.set(finding.file, await readFile(path.join(root, finding.file), 'utf8'));
+      } catch {
+        driftedFiles.add(finding.file);
+      }
+    }
+  }
+  for (const finding of plan.plan) {
+    if (driftedFiles.has(finding.file)) {
       missed.push(finding.id);
       continue;
     }
-    try {
-      const lines = (await readFile(path.join(root, finding.file), 'utf8')).split('\n');
-      const original = lines.slice(finding.startLine - 1, finding.endLine).join('\n');
-      const sourceText = plan._internal?.sources?.[finding.id] ?? finding.sourceText ?? finding.rationale.split(' (')[0];
-      if (original.includes(sourceText)) missed.push(finding.id);
-      else applied.push(finding.id);
-    } catch {
+    const fileText = fileTexts.get(finding.file);
+    if (fileText === undefined) {
       missed.push(finding.id);
+      continue;
     }
+    const sourceText = plan._internal?.sources?.[finding.id] ?? finding.sourceText ?? finding.rationale.split(' (')[0];
+    if (fileText.includes(sourceText)) missed.push(finding.id);
+    else applied.push(finding.id);
   }
   for (const span of plan.preserve) {
     try {
@@ -304,7 +315,12 @@ export async function verifyPlan(plan, root) {
       violations.push({ file: span.file, startLine: span.startLine, endLine: span.endLine, reason: span.reason });
     }
   }
-  const removed = plan.plan.filter((finding) => applied.includes(finding.id)).reduce((total, finding) => total + finding.tokensFreed, 0);
-  const remaining = Math.max(0, plan.current - removed);
+  const changedFiles = new Set(plan.plan.map((finding) => finding.file));
+  const changedTokens = [...changedFiles].reduce((total, file) => {
+    const before = plan._internal?.fileTokens?.[file];
+    const current = fileTexts.get(file);
+    return before === undefined || current === undefined ? total : total + before - countTokens(current);
+  }, 0);
+  const remaining = Math.max(0, plan.current - changedTokens);
   return { applied, missed, violations, remaining, satisfied: missed.length === 0 && violations.length === 0 && remaining <= plan.budget };
 }

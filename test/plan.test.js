@@ -82,7 +82,7 @@ async function fixtureFromDirectory(name) {
 
 test('condense accounting uses net tokens and makes inflated budgets unsatisfiable', async () => {
   const data = await fixtureFromDirectory('condense-savings-accounting');
-  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 0 });
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 4 });
   const finding = plan.plan.find((entry) => entry.action === 'condense');
   assert.ok(finding);
   const fullSpanTokens = countTokens(plan._internal.sources[finding.id]);
@@ -107,4 +107,26 @@ test('overlapping findings count only the highest-confidence action', async () =
   const after = countTokens(await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'))
     + countTokens(await readFile(path.join(data.root, 'CLAUDE.md'), 'utf8'));
   assert.equal(plan.minAchievable, after);
+});
+
+test('verify checks all finding source text after bottom-up multi-finding apply', async () => {
+  const data = await fixtureFromDirectory('offset-aware-verification');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 4 });
+  assert.equal(plan.plan.length, 3);
+  const result = await applyPlan(plan, data.root);
+  assert.equal(result.missed.length, 0);
+  const verified = await verifyPlan(plan, data.root);
+  assert.deepEqual(verified.missed, []);
+  assert.equal(verified.satisfied, true);
+});
+
+test('verify reports a re-added source line as missed', async () => {
+  const data = await fixtureFromDirectory('offset-aware-verification');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 0 });
+  await applyPlan(plan, data.root);
+  const first = plan.plan[0];
+  await writeFile(path.join(data.root, 'AGENTS.md'), plan._internal.sources[first.id] + '\n');
+  const verified = await verifyPlan(plan, data.root);
+  assert.ok(verified.missed.includes(first.id));
+  assert.equal(verified.satisfied, false);
 });
