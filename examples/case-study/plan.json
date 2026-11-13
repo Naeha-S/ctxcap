@@ -1,0 +1,57 @@
+﻿{
+  "schema": "ctxcap/plan/v2",
+  "planId": "0015f7",
+  "satisfiable": true,
+  "budget": 400,
+  "current": 1504,
+  "minAchievable": 259,
+  "tokensRemaining": 1104,
+  "truncated": false,
+  "remainingFindings": 0,
+  "approximate": true,
+  "plan": [
+    {
+      "id": "0015f7:0",
+      "file": "AGENTS.md",
+      "startLine": 7,
+      "endLine": 7,
+      "kind": "largeParagraph",
+      "tokensFreed": 646,
+      "replacementTokens": 49,
+      "confidence": 0.65,
+      "loadBearing": false,
+      "rationale": "non-load-bearing paragraph over 300 tokens",
+      "action": "condense",
+      "score": 293.93,
+      "condensedText": "The case study also records the operational reasoning that normally accumulates in a project. Before changing a context file, identify the exact line range, check whether the guidance is loaded at startup or only conditionally, and preserve instructions that are load-bearing."
+    },
+    {
+      "id": "0015f7:1",
+      "file": "AGENTS.md",
+      "startLine": 9,
+      "endLine": 9,
+      "kind": "largeParagraph",
+      "tokensFreed": 602,
+      "replacementTokens": 34,
+      "confidence": 0.65,
+      "loadBearing": false,
+      "rationale": "non-load-bearing paragraph over 300 tokens",
+      "action": "condense",
+      "score": 273.90999999999997,
+      "condensedText": "Use the following operational notes when preparing a release. This paragraph is intentionally verbose so the case study measures a realistic context file. Keep the release checklist visible, confirm […] ."
+    }
+  ],
+  "preserve": [
+    {
+      "file": "CLAUDE.md",
+      "startLine": 7,
+      "endLine": 7,
+      "reason": "load-bearing instruction"
+    }
+  ],
+  "diff": {
+    "previousTotal": 1504,
+    "currentTotal": 1504,
+    "totalDelta": 0
+  }
+}

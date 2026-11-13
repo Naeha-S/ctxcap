@@ -1,0 +1,33 @@
+﻿{
+  "schema": "ctxcap/v1",
+  "approximate": true,
+  "tokenizer": "gpt-tokenizer@3.0.1",
+  "total": 1504,
+  "totalByClass": {
+    "startup": 1473,
+    "always": 31
+  },
+  "totalBudget": null,
+  "delta": 1504,
+  "over": false,
+  "baselineFound": false,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "tokens": 1473,
+      "delta": 1473,
+      "budget": null,
+      "loadClass": "startup"
+    },
+    {
+      "path": "CLAUDE.md",
+      "tokens": 31,
+      "delta": 31,
+      "budget": null,
+      "loadClass": "always"
+    }
+  ],
+  "suggestions": [],
+  "findings": [],
+  "reclaimableTotal": 0
+}

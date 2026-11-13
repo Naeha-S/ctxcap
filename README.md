@@ -41,27 +41,33 @@ clean tree, then review with `git diff` before committing. Do not run
 
 Agents can fetch the five-line loop from [`llms.txt`](llms.txt).
 
-## Before and after
+## Measured case study
 
-This is a real measurement from the ctxcap repository itself:
+[`examples/case-study/`](examples/case-study/) contains a reproducible
+multi-file run. It starts with 1,504 tokens (1,473 startup-loaded and 31
+always-loaded), applies plan `0015f7` at budget 400, and finishes at 259
+tokens. The plan's `minAchievable` is 259, two condenses apply, and the
+preserve span in `CLAUDE.md` survives verification with zero missed findings
+or violations.
 
-```text
-$ npx ctxcap --json
-total: 476   baseline: 363   delta: +113   files: 2
+The committed [`before.json`](examples/case-study/before.json),
+[`plan.json`](examples/case-study/plan.json), [`apply.json`](examples/case-study/apply.json),
+[`apply.diff`](examples/case-study/apply.diff), [`verify.json`](examples/case-study/verify.json),
+and [`after.json`](examples/case-study/after.json) show every number. Re-run
+the commands below from the repository root to reproduce it:
 
-$ npx ctxcap --plan --budget 400
-satisfiable: false   current: 476   minAchievable: 476   tokensRemaining: 76
-plan: []   preserve: AGENTS.md:19-20, llms.txt:17-30
+```bash
+npx ctxcap --json --root examples/case-study
+npx ctxcap --plan --budget 400 --root examples/case-study
+npx ctxcap --plan --budget 400 --apply --root examples/case-study
+npx ctxcap --verify 0015f7 --root examples/case-study
 ```
 
-The result correctly stops instead of cutting load-bearing instructions. For a
-successful before/after case study, use a public repository with a larger
-context file and publish the commit, JSON reports, plan, and verification
-result together.
-
-To publish a reproducible case study, include the repository commit, the
-`ctxcap --json` report before and after, the plan JSON, and the verification
-result. This makes the reclaim measurable and lets readers reproduce it.
+Measured correction: the first condensed candidate was bounded at a sentence
+boundary and verification confirmed both replacements rather than trusting
+shifted line numbers. The 1,245-token reduction is useful because the
+remaining 259 tokens include the preserve rule that prevents repeating the
+release investigation.
 
 Context can be stale as well as large. Run the dead-reference pass to find
 paths, commands, globs, and `@path`/`#path` references that no longer resolve:
@@ -156,6 +162,10 @@ files.
 | `--apply` | Apply the generated plan atomically |
 | `--verify <planId>` | Verify a saved plan and preserve spans |
 | `--budget <n>` | Target budget for `--plan` |
+| `--budget-class <class>=<n>` | Budget a conditional or manual load class |
+| `--strict-preserve` | Restore exclusion of all preserve spans |
+| `--max-condense-chars <n>` | Set the maximum replacement length (default: 320) |
+| `--min-tokens <n>` | Set the minimum reclaimable finding size (default: 20) |
 
 Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
 
@@ -172,9 +182,17 @@ Exit codes: `0` clean, `1` breach under `--fail-on`, `2` internal error.
     "AGENTS.md": 500,
     "prompts/system.md": 8000
   },
+  "preserveHeadings": ["Never", "Constraints", "Must", "Rules"],
   "failOn": "budget"
 }
 ```
+
+Reports include `totalByClass` for `always`, `startup`, `conditional`, and
+`manual` files. `total` remains for compatibility and is the sum of all
+classes; the `--budget` gate applies only to always and startup files.
+Condense findings report net `tokensFreed`, `replacementTokens`, and a score.
+Their replacements end at sentence or clause boundaries rather than a fixed
+character truncation. Plan output uses schema `ctxcap/plan/v2`.
 
 **Defaults** (when no config exists): scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `prompts/**`, `*.prompt`, `.cursor/rules/**`.
 

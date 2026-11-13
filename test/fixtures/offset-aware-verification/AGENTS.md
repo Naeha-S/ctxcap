@@ -1,0 +1,5 @@
+Use `missing-one.js` before committing. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository.
+
+Use `missing-two.js` before committing. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository.
+
+Use `missing-three.js` before committing. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository. Remove this obsolete guidance after checking the repository.

@@ -1,0 +1,3 @@
+# Never
+
+Never skip this important rule. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly. Keep this instruction available for every agent and explain the required behavior clearly.
