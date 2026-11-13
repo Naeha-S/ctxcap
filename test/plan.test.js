@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { makePlan, applyPlan, loadPlan, savePlan, verifyPlan } from '../src/plan.js';
@@ -62,4 +62,49 @@ test('plans persist under .ctxcap/plans and can be loaded by id', async () => {
   await savePlan(fixtureData.root, plan);
   const loaded = await loadPlan(fixtureData.root, plan.planId);
   assert.equal(loaded.planId, plan.planId);
+});
+
+async function fixtureFromDirectory(name) {
+  const source = path.join(process.cwd(), 'test', 'fixtures', name);
+  const root = await mkdtemp(path.join(tmpdir(), `ctxcap-${name}-`));
+  const text = await readFile(path.join(source, 'AGENTS.md'), 'utf8');
+  await writeFile(path.join(root, 'AGENTS.md'), text);
+  if (name === 'overlapping-findings') {
+    await writeFile(path.join(root, 'CLAUDE.md'), await readFile(path.join(source, 'CLAUDE.md'), 'utf8'));
+  }
+  const files = [];
+  for (const file of ['AGENTS.md', ...(name === 'overlapping-findings' ? ['CLAUDE.md'] : [])]) {
+    const fileText = await readFile(path.join(root, file), 'utf8');
+    files.push({ path: file, text: fileText, tokens: countTokens(fileText) });
+  }
+  return { root, files };
+}
+
+test('condense accounting uses net tokens and makes inflated budgets unsatisfiable', async () => {
+  const data = await fixtureFromDirectory('condense-savings-accounting');
+  const fullSpanTokens = data.files[0].tokens;
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 0 });
+  const finding = plan.plan.find((entry) => entry.action === 'condense');
+  assert.ok(finding);
+  assert.equal(finding.replacementTokens, countTokens(finding.condensedText));
+  assert.equal(finding.tokensFreed, fullSpanTokens - finding.replacementTokens);
+
+  await applyPlan(plan, data.root);
+  const after = countTokens(await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'));
+  assert.equal(plan.minAchievable, after);
+
+  const inflatedMinimum = data.files[0].tokens - fullSpanTokens;
+  const between = Math.floor((inflatedMinimum + after) / 2);
+  const constrained = await makePlan({ ...data, config: { ignore: [] }, budget: between });
+  assert.equal(constrained.satisfiable, false);
+});
+
+test('overlapping findings count only the highest-confidence action', async () => {
+  const data = await fixtureFromDirectory('overlapping-findings');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 0 });
+  assert.equal(plan.plan.filter((entry) => entry.file === 'AGENTS.md').length, 1);
+  await applyPlan(plan, data.root);
+  const after = countTokens(await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'))
+    + countTokens(await readFile(path.join(data.root, 'CLAUDE.md'), 'utf8'));
+  assert.equal(plan.minAchievable, after);
 });

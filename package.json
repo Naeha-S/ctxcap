@@ -1,6 +1,6 @@
 {
   "name": "ctxcap",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Offline token-budget linter for agent context files — measures CLAUDE.md/AGENTS.md, finds dead references, returns a ranked plan.",
   "type": "module",
   "workspaces": [

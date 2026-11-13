@@ -53,8 +53,8 @@ function planId(findings) {
   return createHash('sha256').update(input).digest('hex').slice(0, 6);
 }
 
-function findingFor(file, startLine, endLine, kind, tokensFreed, confidence, rationale, loadBearing = false, action = 'delete') {
-  return { file, startLine, endLine, kind, tokensFreed, confidence, loadBearing, rationale, action };
+function findingFor(file, startLine, endLine, kind, tokensFreed, confidence, rationale, loadBearing = false, action = 'delete', replacementTokens = 0) {
+  return { file, startLine, endLine, kind, tokensFreed, replacementTokens, confidence, loadBearing, rationale, action };
 }
 
 function attachInternal(plan, internal) {
@@ -108,7 +108,8 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
       const tokens = countTokens(span.lines.join('\n'));
       if (!loadBearing && tokens > 300) {
         const condensedText = `${span.lines.join(' ').slice(0, 240).trim()}...`;
-        const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', tokens, 0.65, 'non-load-bearing paragraph over 300 tokens', false, 'condense');
+        const replacementTokens = countTokens(condensedText);
+        const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), 0.65, 'non-load-bearing paragraph over 300 tokens', false, 'condense', replacementTokens);
         finding.condensedText = condensedText;
         finding._sourceText = span.lines.join('\n');
         candidates.push(finding);
@@ -126,12 +127,21 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     const removable = [...selected].sort((a, b) => (a.action === 'condense') - (b.action === 'condense') || a.confidence - b.confidence)[0];
     selected = selected.filter((finding) => finding !== removable);
   }
-  const uniqueCuttable = new Map();
-  for (const finding of filtered) {
-    const key = `${finding.file}:${finding.startLine}:${finding.endLine}`;
-    if (!finding.loadBearing) uniqueCuttable.set(key, finding.tokensFreed);
+  const groups = [];
+  for (const finding of filtered.filter((candidate) => !candidate.loadBearing)) {
+    const matching = groups.filter((group) => group.some((candidate) => overlaps(candidate, finding)));
+    if (!matching.length) {
+      groups.push([finding]);
+      continue;
+    }
+    const merged = [finding, ...matching.flat()];
+    for (const group of matching) groups.splice(groups.indexOf(group), 1);
+    groups.push(merged);
   }
-  const allCuttable = [...uniqueCuttable.values()].reduce((total, tokens) => total + tokens, 0);
+  const allCuttable = groups.reduce((total, group) => {
+    const best = [...group].sort((a, b) => b.confidence - a.confidence)[0];
+    return total + best.tokensFreed;
+  }, 0);
   const minAchievable = Math.max(0, current - allCuttable);
   const baselineTotal = files.reduce((total, file) => total + (file.baselineTokens ?? file.tokens), 0);
   const response = {
