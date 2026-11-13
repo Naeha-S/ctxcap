@@ -22,7 +22,7 @@ export const DEFAULTS = {
   failOn: null
 };
 
-export const CONFIG_FILES = ['.ctxcap.json', '.ctxlint.json', '.tokenlint.json'];
+export const CONFIG_FILES = ['.ctxcap.json', '.tokenlint.json'];
 
 export function assertSafePatterns(list, field) {
   if (!Array.isArray(list) || list.some((x) => typeof x !== 'string')) {

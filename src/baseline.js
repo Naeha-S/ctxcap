@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const exec = promisify(execFile);
 export const BASELINE_FILE = 'ctxcap-baseline.json';
-export const LEGACY_BASELINE_FILES = ['ctxlint-baseline.json', 'tokenlint-baseline.json'];
+export const LEGACY_BASELINE_FILES = ['tokenlint-baseline.json'];
 
 export async function loadBaseline(root, ref) {
   const filesToTry = [BASELINE_FILE, ...LEGACY_BASELINE_FILES];

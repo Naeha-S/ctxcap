@@ -1,7 +1,5 @@
 node_modules/
 ctxcap-report.json
 ctxcap.sarif
-ctxlint-report.json
-ctxlint.sarif
 tokenlint-report.json
 tokenlint.sarif
