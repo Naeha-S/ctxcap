@@ -87,6 +87,10 @@ function scoreFor(tokensFreed, confidence, action, loadBearing) {
   return tokensFreed * confidence * (action === 'condense' ? 0.7 * (loadBearing ? 0.8 : 1) : 1);
 }
 
+function compareFindings(a, b) {
+  return b.score - a.score || a.file.localeCompare(b.file) || a.startLine - b.startLine;
+}
+
 function planId(findings) {
   const input = findings.map((f) => `${f.file}:${f.startLine}:${f.endLine}:${f.kind}`).sort().join('\n');
   return createHash('sha256').update(input).digest('hex').slice(0, 6);
@@ -170,8 +174,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
         : candidate.action === 'deleteKeepingCanonical'
           ? Boolean(candidate._canonicalSpan && !overlaps(candidate._canonicalSpan, candidate))
           : !preserve.some((span) => overlaps(candidate, span)))
-    .sort((a, b) => b.score - a.score
-      || a.file.localeCompare(b.file) || a.startLine - b.startLine);
+    .sort(compareFindings);
   const id = planId(filtered);
   let selected = filtered.slice(0, maxFindings).map((finding, index) => ({ id: `${id}:${index}`, ...finding }));
   while (selected.length && JSON.stringify(selected).length > 10000) {
