@@ -97,7 +97,9 @@ function compareFindings(a, b) {
 }
 
 function planId(findings) {
-  const input = findings.map((f) => `${f.file}:${f.startLine}:${f.endLine}:${f.kind}`).sort().join('\n');
+  const input = findings.map((f) =>
+    `${f.file}:${f.startLine}:${f.endLine}:${f.kind}:${hashText(f.condensedText ?? '')}`
+  ).sort().join('\n');
   return createHash('sha256').update(input).digest('hex').slice(0, 6);
 }
 

@@ -202,3 +202,10 @@ test('apply prepares all files before renaming any file', async () => {
   assert.deepEqual(result.missed.sort(), ['first', 'second']);
   assert.equal(await readFile(path.join(root, 'first.md'), 'utf8'), first);
 });
+
+test('planId changes when condensed replacement text changes', async () => {
+  const data = await fixtureFromDirectory('survivable-condense');
+  const short = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 280 });
+  const long = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 320 });
+  assert.notEqual(short.planId, long.planId);
+});
