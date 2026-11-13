@@ -72,8 +72,11 @@ async function fixtureFromDirectory(name) {
   if (name === 'overlapping-findings') {
     await writeFile(path.join(root, 'CLAUDE.md'), await readFile(path.join(source, 'CLAUDE.md'), 'utf8'));
   }
+  if (name === 'load-bearing-duplicate') {
+    await writeFile(path.join(root, 'CLAUDE.md'), await readFile(path.join(source, 'CLAUDE.md'), 'utf8'));
+  }
   const files = [];
-  for (const file of ['AGENTS.md', ...(name === 'overlapping-findings' ? ['CLAUDE.md'] : [])]) {
+  for (const file of ['AGENTS.md', ...(['overlapping-findings', 'load-bearing-duplicate'].includes(name) ? ['CLAUDE.md'] : [])]) {
     const fileText = await readFile(path.join(root, file), 'utf8');
     files.push({ path: file, text: fileText, tokens: countTokens(fileText) });
   }
@@ -129,4 +132,21 @@ test('verify reports a re-added source line as missed', async () => {
   const verified = await verifyPlan(plan, data.root);
   assert.ok(verified.missed.includes(first.id));
   assert.equal(verified.satisfied, false);
+});
+
+test('load-bearing large paragraphs can be condensed unless strict preserve is enabled', async () => {
+  const data = await fixtureFromDirectory('load-bearing-condense');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.ok(plan.plan.some((finding) => finding.action === 'condense' && finding.loadBearing));
+  const strict = await makePlan({ ...data, config: { ignore: [] }, budget: 1, strictPreserve: true });
+  assert.equal(strict.plan.length, 0);
+});
+
+test('load-bearing duplicate keeps the earlier canonical span', async () => {
+  const data = await fixtureFromDirectory('load-bearing-duplicate');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  const duplicate = plan.plan.find((finding) => finding.action === 'deleteKeepingCanonical');
+  assert.ok(duplicate);
+  assert.equal(duplicate.canonical, 'AGENTS.md:3:3');
+  assert.match(duplicate.rationale, /AGENTS\.md:3:3/);
 });

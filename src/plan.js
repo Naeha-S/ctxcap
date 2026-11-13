@@ -83,7 +83,7 @@ function hashText(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
-export async function makePlan({ files, root, config, budget, maxFindings = 15, includeDiff = false, apply = false }) {
+export async function makePlan({ files, root, config, budget, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false }) {
   if (!Number.isInteger(budget) || budget < 0) {
     const error = new Error('budget must be a non-negative integer');
     error.code = 'BUDGET_INVALID';
@@ -102,7 +102,8 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
   for (const finding of stale) {
     const paragraph = paragraphSpans(files.find((file) => file.path === finding.path)).find((span) => span.start <= finding.line && span.end >= finding.line);
     if (!paragraph) continue;
-    const planned = findingFor(finding.path, paragraph.start, paragraph.end, `${finding.rule[0].toLowerCase()}${finding.rule.slice(1)}Block`, countTokens(paragraph.lines.join('\n')), finding.rule === 'stale-path' ? 0.98 : 0.92, `${finding.text} (${finding.rule})`);
+    const { loadBearing } = classifySpan(paragraph, files.find((file) => file.path === finding.path));
+    const planned = findingFor(finding.path, paragraph.start, paragraph.end, `${finding.rule[0].toLowerCase()}${finding.rule.slice(1)}Block`, countTokens(paragraph.lines.join('\n')), finding.rule === 'stale-path' ? 0.98 : 0.92, `${finding.text} (${finding.rule})`, loadBearing);
     planned._sourceText = paragraph.lines.join('\n');
     candidates.push(planned);
   }
@@ -114,19 +115,24 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
       if (!key) continue;
       if (seen.has(key) || globalSeen.has(key)) {
         const canonical = seen.get(key) ?? globalSeen.get(key);
-        const duplicate = findingFor(file.path, span.start, span.end, 'duplicateRule', countTokens(span.lines.join('\n')), 0.92, `duplicate of ${canonical.file}:${canonical.start}`, false, 'deleteKeepingCanonical');
+        const { loadBearing } = classifySpan(span, file);
+        const canonicalKey = `${canonical.file}:${canonical.start}:${canonical.end}`;
+        const duplicate = findingFor(file.path, span.start, span.end, 'duplicateRule', countTokens(span.lines.join('\n')), 0.92, `duplicate of ${canonicalKey}`, loadBearing, 'deleteKeepingCanonical');
+        duplicate.canonical = canonicalKey;
+        duplicate._canonicalSpan = canonical;
         duplicate._sourceText = span.lines.join('\n');
         candidates.push(duplicate);
       } else {
-        seen.set(key, span);
-        globalSeen.set(key, { file: file.path, start: span.start });
+        const canonical = { file: file.path, start: span.start, end: span.end };
+        seen.set(key, canonical);
+        globalSeen.set(key, canonical);
       }
       const { loadBearing } = classifySpan(span, file);
       const tokens = countTokens(span.lines.join('\n'));
-      if (!loadBearing && tokens > 300) {
+      if (tokens > 300) {
         const condensedText = `${span.lines.join(' ').slice(0, 240).trim()}...`;
         const replacementTokens = countTokens(condensedText);
-        const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), 0.65, 'non-load-bearing paragraph over 300 tokens', false, 'condense', replacementTokens);
+        const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), loadBearing ? 0.5 : 0.65, loadBearing ? 'load-bearing paragraph over 300 tokens' : 'non-load-bearing paragraph over 300 tokens', loadBearing, 'condense', replacementTokens);
         finding.condensedText = condensedText;
         finding._sourceText = span.lines.join('\n');
         candidates.push(finding);
@@ -135,7 +141,11 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
   }
   const filtered = candidates
     .filter((candidate) => candidate.tokensFreed >= 40)
-    .filter((candidate) => !preserve.some((span) => overlaps(candidate, span)))
+    .filter((candidate) => strictPreserve
+      ? !preserve.some((span) => overlaps(candidate, span))
+      : candidate.action === 'condense' || candidate.action === 'deleteKeepingCanonical'
+        ? true
+        : !preserve.some((span) => overlaps(candidate, span)))
     .sort((a, b) => (b.tokensFreed / (a.action === 'condense' ? 3 : 1)) - (a.tokensFreed / (b.action === 'condense' ? 3 : 1))
       || a.file.localeCompare(b.file) || a.startLine - b.startLine);
   const id = planId(filtered);
@@ -189,6 +199,7 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     fileTokens: Object.fromEntries(files.map((file) => [file.path, file.tokens]))
   });
   for (const finding of selected) delete finding._sourceText;
+  for (const finding of selected) delete finding._canonicalSpan;
   if (apply) {
     const applied = await applyPlan(response, root);
     response.applied = applied.applied;
