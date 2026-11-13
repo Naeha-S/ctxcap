@@ -3,7 +3,7 @@ import { TOKENIZER_ID, APPROXIMATE } from './tokenize.js';
 export const TOOL_NAME = 'ctxcap';
 export const SCHEMA_ID = 'ctxcap/v1';
 
-export function buildReport({ files, baseline, baselineFound, config, suggestions = [], findings = [], staleDiff = '' }) {
+export function buildReport({ files, baseline, baselineFound, config, suggestions = [], findings = [], staleDiff = '', budgetClasses = {} }) {
   const baseCounts = baseline && typeof baseline === 'object' && 'counts' in baseline ? baseline.counts : (baseline ?? {});
   const isBaselineFound = baselineFound !== undefined
     ? Boolean(baselineFound)
@@ -15,23 +15,33 @@ export function buildReport({ files, baseline, baselineFound, config, suggestion
     path: f.path,
     tokens: f.tokens,
     delta: f.tokens - (baseCounts[f.path] ?? 0),
-    budget: config.budgets[f.path] ?? null
+    budget: config.budgets[f.path] ?? null,
+    loadClass: f.loadClass ?? 'always'
   }));
 
   const total = entries.reduce((a, e) => a + e.tokens, 0);
   const baseTotal = Object.values(baseCounts).reduce((a, b) => a + b, 0);
   const delta = total - baseTotal;
   const totalBudget = config.budgets.total ?? null;
+  const totalByClass = entries.reduce((totals, entry) => {
+    totals[entry.loadClass] = (totals[entry.loadClass] ?? 0) + entry.tokens;
+    return totals;
+  }, {});
+  const startupTotal = (totalByClass.always ?? 0) + (totalByClass.startup ?? 0);
+  const classOver = Object.entries(budgetClasses).some(([loadClass, budget]) =>
+    (totalByClass[loadClass] ?? 0) > budget
+  );
 
   const over =
     entries.some((e) => e.budget !== null && e.tokens > e.budget) ||
-    (totalBudget !== null && total > totalBudget);
+    (totalBudget !== null && startupTotal > totalBudget) || classOver;
 
   return {
     schema: SCHEMA_ID,
     approximate: APPROXIMATE,
     tokenizer: TOKENIZER_ID,
     total,
+    totalByClass,
     totalBudget,
     delta,
     over,

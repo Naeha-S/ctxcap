@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { loadConfig } from './config.js';
-import { collectFiles } from './glob.js';
+import { collectFiles, loadClassFor } from './glob.js';
 import { countTokens } from './tokenize.js';
 import { loadBaseline, saveBaseline, BASELINE_FILE } from './baseline.js';
 import { buildReport, renderText, renderSarif, exitCodeFor } from './report.js';
@@ -27,6 +27,7 @@ Usage: ctxcap [options]
   --apply             apply the generated plan atomically
   --verify <planId>   verify a previously saved plan
   --budget <n>        target budget for --plan
+  --budget-class <class>=<n> budget for a load class
   --strict-preserve    exclude all load-bearing spans from plans
   --max-condense-chars <n>  maximum condensed replacement length (default: 320)
   --baseline <ref>    read baseline from a git ref (CI uses merge base)
@@ -39,7 +40,7 @@ Exit: 0 clean, 1 breach under --fail-on, 2 internal error.
 No network. No telemetry. No API key.`;
 
 function parseArgs(argv) {
-  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, failOn: null, baseline: null, config: null, root: '.' };
+  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, budgetClasses: {}, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, failOn: null, baseline: null, config: null, root: '.' };
   const need = (i, flag) => {
     if (i + 1 >= argv.length) throw new Error(`${flag} needs a value`);
     return argv[i + 1];
@@ -56,6 +57,12 @@ function parseArgs(argv) {
     else if (a === '--apply') o.apply = true;
     else if (a === '--verify') o.verify = need(i++, a);
     else if (a === '--budget') o.budget = Number(need(i++, a));
+    else if (a === '--budget-class') {
+      const value = need(i++, a);
+      const match = /^([^=]+)=(\d+)$/.exec(value);
+      if (!match) throw new Error('--budget-class must be <class>=<n>');
+      o.budgetClasses[match[1]] = Number(match[2]);
+    }
     else if (a === '--strict-preserve') o.strictPreserve = true;
     else if (a === '--max-condense-chars') o.maxCondenseChars = Number(need(i++, a));
     else if (a === '--min-tokens') o.minTokens = Number(need(i++, a));
@@ -89,7 +96,7 @@ async function main() {
   const files = [];
   for (const p of paths) {
     const text = await readFile(path.join(root, p), 'utf8');
-    files.push({ path: p, text, tokens: countTokens(text) });
+    files.push({ path: p, text, tokens: countTokens(text), loadClass: loadClassFor(p) });
   }
 
   if (opts.verify) {
@@ -126,7 +133,8 @@ async function main() {
     config,
     suggestions: opts.suggest ? suggest(files) : [],
     findings,
-    staleDiff: opts.staleFix ? staleDiff(files, findings) : ''
+    staleDiff: opts.staleFix ? staleDiff(files, findings) : '',
+    budgetClasses: opts.budgetClasses
   });
 
   if (opts.sarif) console.log(JSON.stringify(renderSarif(report), null, 2));

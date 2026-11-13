@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { loadConfig } from '../src/config.js';
-import { collectFiles } from '../src/glob.js';
+import { collectFiles, loadClassFor } from '../src/glob.js';
 import { countTokens } from '../src/tokenize.js';
 import { loadBaseline } from '../src/baseline.js';
 import { buildReport, TOOL_NAME } from '../src/report.js';
@@ -47,7 +47,7 @@ async function measure(extra) {
   const files = [];
   for (const p of paths) {
     const text = await readFile(path.join(ROOT, p), 'utf8');
-    files.push({ path: p, text, tokens: countTokens(text) });
+    files.push({ path: p, text, tokens: countTokens(text), loadClass: loadClassFor(p) });
   }
   const baseline = await loadBaseline(ROOT, null);
   const findings = extra?.stale ? await findStale(files, ROOT, config, { staleGlob: extra.staleGlob }) : [];

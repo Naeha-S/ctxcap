@@ -3,6 +3,13 @@ import { lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { IGNORE } from './config.js';
 
+export function loadClassFor(filePath) {
+  if (filePath === 'CLAUDE.md') return 'always';
+  if (filePath === 'AGENTS.md') return 'startup';
+  if (filePath.startsWith('.cursor/rules/') || (filePath.endsWith('/AGENTS.md') && filePath !== 'AGENTS.md')) return 'conditional';
+  return 'manual';
+}
+
 // Context files can come from an untrusted PR checkout. We only ever read
 // regular files that live inside `root`: no symlinks, no `..`, no absolute globs.
 export async function collectFiles(root, config) {

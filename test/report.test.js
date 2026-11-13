@@ -42,6 +42,19 @@ test('total budget triggers over', () => {
     baseline: {},
     config: { budgets: { total: 10 } }
   });
+
+  test('reports load classes and gates total budget on always/startup files', () => {
+    const r = buildReport({
+      files: [
+        { path: 'CLAUDE.md', tokens: 10, loadClass: 'always' },
+        { path: 'prompts/manual.md', tokens: 100, loadClass: 'manual' }
+      ],
+      baseline: {},
+      config: { budgets: { total: 20 } }
+    });
+    assert.deepEqual(r.totalByClass, { always: 10, manual: 100 });
+    assert.equal(r.over, false);
+  });
   assert.equal(r.over, true);
 });
 
