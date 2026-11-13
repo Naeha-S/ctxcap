@@ -116,6 +116,12 @@ export async function makePlan({ files, root, config, budget, maxFindings = 15, 
     error.fix = 'pass --budget <n>';
     throw error;
   }
+  if (!Number.isInteger(minTokens) || minTokens < 0) {
+    const error = new Error('minTokens must be a non-negative integer');
+    error.code = 'MIN_TOKENS_INVALID';
+    error.fix = 'pass --min-tokens <n>';
+    throw error;
+  }
   const current = files.reduce((total, file) => total + file.tokens, 0);
   const preserve = preserveSpans(files);
   const preserveText = Object.fromEntries(preserve.map((span) => [
