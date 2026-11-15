@@ -124,6 +124,10 @@ sits where a target would go, such as a hand-written workflow or your own
 is 3. `--force` overwrites it. Exit codes: `0` done, `3` when a target was left
 alone and needs `--force`, `2` for a bad flag.
 
+A workflow that already runs `ctxcap`, through the action or through `npx`, is
+reported as `wired by user`. It counts as wired, `init` does not add a second
+workflow beside it, and the exit code stays 0.
+
 ### Every write is reversible
 
 - Markdown gets a block between `<!-- ctxcap:begin -->` and

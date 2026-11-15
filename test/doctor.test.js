@@ -78,6 +78,10 @@ test('doctor: this repository is wired by its own init, at the current version',
   assert.equal(result.ok, true, JSON.stringify(result.agents.filter((entry) => entry.status !== 'wired')));
   assert.deepEqual(statuses(result), ALL('wired'));
   assert.equal(cli(process.cwd(), 'doctor').status, 0);
+  // init agrees with doctor: its own workflow runs the action from the checkout.
+  const init = cli(process.cwd(), 'init');
+  assert.equal(init.status, 0, init.stderr);
+  assert.match(init.stderr, /^wired by user: \.github\/workflows\/ctxcap\.yml \(already runs ctxcap\)$/m);
   // The committed badge shows the number the tool reports today.
   const badge = JSON.parse(await readFile('.ctxcap/badge.json', 'utf8'));
   assert.equal(badge.message, String(JSON.parse(cli(process.cwd(), '--json').stdout).total));

@@ -1,7 +1,7 @@
 // What `ctxcap init` writes for each coding agent. Every target is a file that
 // can be committed, so a clone inherits the wiring without running anything.
 
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -211,8 +211,38 @@ jobs:
 `;
 }
 
+const WORKFLOWS = '.github/workflows';
+const USES_ACTION = /^\s*-?\s*uses:\s*["']?Naeha-S\/ctxcap@/im;
+const USES_LOCAL = /^\s*-?\s*uses:\s*["']?\.\/?["']?\s*$/m;
+const RUNS_CLI = /\bnpx\s+(?:-\S+\s+)*ctxcap(?:@[\w.-]+)?(?=\s|$)/m;
+
+/**
+ * The workflow, if any, in which the user already runs ctxcap: the action by
+ * name, the CLI through npx, or `uses: ./` in the repository that is the action.
+ */
+export async function userWorkflow(root) {
+  let names;
+  try {
+    names = (await readdir(path.join(root, WORKFLOWS))).filter((name) => /\.ya?ml$/.test(name)).sort();
+  } catch {
+    return null;
+  }
+  let isAction = false;
+  try { isAction = /ctxcap/i.test(await readFile(path.join(root, 'action.yml'), 'utf8')); } catch { /* not the action's own repository */ }
+  for (const name of names) {
+    const text = await readFile(path.join(root, WORKFLOWS, name), 'utf8');
+    if (text.includes(MANAGED_HASH)) continue;
+    const code = text.split(/\r?\n/).filter((line) => !/^\s*#/.test(line)).join('\n');
+    if (USES_ACTION.test(code) || RUNS_CLI.test(code) || (isAction && USES_LOCAL.test(code))) return `${WORKFLOWS}/${name}`;
+  }
+  return null;
+}
+
 const ci = (context) => [
-  { groups: ['ci'], path: '.github/workflows/ctxcap.yml', kind: 'file', marker: MANAGED_HASH, content: workflow(context) }
+  {
+    groups: ['ci'], path: `${WORKFLOWS}/ctxcap.yml`, kind: 'file', marker: MANAGED_HASH, content: workflow(context),
+    userWired: userWorkflow, userReason: 'already runs ctxcap'
+  }
 ];
 
 // ---------------------------------------------------------------- badge

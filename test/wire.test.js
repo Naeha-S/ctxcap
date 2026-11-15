@@ -276,3 +276,59 @@ test('init: warns when git would ignore a file it writes', async () => {
   assert.deepEqual(warned.sort(), ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore']);
   assert.doesNotMatch(cli(await repo(), 'init', '--yes').stderr, /warning:/);
 });
+
+test('ci: a workflow that already runs ctxcap is reported as wired by the user, and init exits 0', async () => {
+  const job = (step) => `name: context\non: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${step}\n`;
+  const wiredByUser = {
+    'the action by name': { '.github/workflows/context.yml': job('      - uses: Naeha-S/ctxcap@v1\n        with: { fail-on: budget }') },
+    'the action, quoted and pinned to a commit': { '.github/workflows/lint.yaml': job('      - uses: "naeha-s/ctxcap@2b2d4cb4183549de9383d599a37d9eb48b303ab0"') },
+    'the CLI through npx': { '.github/workflows/context.yml': job('      - run: npx -y ctxcap@1.4.0 --fail-on budget') },
+    'the action from its own checkout': { '.github/workflows/ctxcap.yml': job('      - uses: ./'), 'action.yml': 'name: ctxcap\nruns:\n  using: composite\n' }
+  };
+  for (const [name, files] of Object.entries(wiredByUser)) {
+    const dir = await repo(files);
+    const before = await tree(dir);
+    const file = Object.keys(files)[0];
+    const result = cli(dir, 'init', '--yes', '--agents', 'ci');
+    assert.equal(result.status, 0, name);
+    assert.equal(result.stderr.trim(), `wired by user: ${file} (already runs ctxcap)`, name);
+    assert.deepEqual(await tree(dir), before, name);
+    assert.match(cli(dir, 'doctor').stdout, new RegExp(`^ci {7}wired: by ${file.replace(/[.]/g, '\\.')}, not written by ctxcap init$`, 'm'), name);
+    assert.equal(cli(dir, 'doctor').status, 0, name);
+    assert.match(cli(dir, 'init', '--remove', '--yes', '--agents', 'ci').stderr, /^left: .* \(not written by ctxcap init\)$/m, name);
+    assert.deepEqual(await tree(dir), before, name);
+  }
+
+  const notWired = {
+    'a commented-out step': { '.github/workflows/context.yml': job('      # - uses: Naeha-S/ctxcap@v1\n      - run: npm test') },
+    'the MCP server, not the CLI': { '.github/workflows/context.yml': job('      - run: npx -y ctxcap-mcp --help') },
+    'a local action in some other repository': { '.github/workflows/context.yml': job('      - uses: ./'), 'action.yml': 'name: widgets\n' }
+  };
+  for (const [name, files] of Object.entries(notWired)) {
+    const dir = await repo(files);
+    const result = cli(dir, 'init', '--yes', '--agents', 'ci');
+    assert.equal(result.status, 0, name);
+    assert.equal(result.stderr.trim(), 'wrote: .github/workflows/ctxcap.yml', name);
+  }
+});
+
+test('ci: --force replaces a hand-written workflow only at the path init writes', async () => {
+  const own = 'name: ctxcap\non: pull_request\njobs:\n  ctxcap:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: Naeha-S/ctxcap@v1\n';
+  const atPath = await repo({ '.github/workflows/ctxcap.yml': own });
+  assert.equal(cli(atPath, 'init', '--yes', '--agents', 'ci').status, 0);
+  assert.equal((await tree(atPath))['.github/workflows/ctxcap.yml'], own);
+  const forced = cli(atPath, 'init', '--yes', '--agents', 'ci', '--force');
+  assert.equal(forced.status, 0);
+  assert.ok((await tree(atPath))['.github/workflows/ctxcap.yml'].startsWith('# ctxcap:managed\n'));
+
+  const elsewhere = await repo({ '.github/workflows/context.yml': own });
+  const kept = cli(elsewhere, 'init', '--yes', '--agents', 'ci', '--force');
+  assert.equal(kept.status, 0);
+  assert.deepEqual(Object.keys(await tree(elsewhere)), ['.github/workflows/context.yml']);
+
+  // A file at the path that does not run ctxcap is not wiring: it blocks, and exits 3.
+  const unrelated = await repo({ '.github/workflows/ctxcap.yml': 'name: ctxcap\non: push\njobs: {}\n' });
+  const blocked = cli(unrelated, 'init', '--yes', '--agents', 'ci');
+  assert.equal(blocked.status, 3);
+  assert.match(blocked.stderr, /^skipped: \.github\/workflows\/ctxcap\.yml \(not written by ctxcap init; --force overwrites it\)$/m);
+});
