@@ -12,11 +12,13 @@ export function annotations(report) {
       out.push(`::warning file=${escProp(f.path)},line=1,title=ctxcap::${escData(`${f.tokens} tokens, budget ${f.budget} (${f.tokens - f.budget} over)`)}`);
     }
   }
-  if (report.totalBudget !== null && report.total > report.totalBudget) {
-    out.push(`::warning title=ctxcap::${escData(`total ${report.total} tokens exceeds budget ${report.totalBudget}`)}`);
+  // The total budget gates always- and startup-loaded files, as the CLI does.
+  const gated = report.totalByClass ? (report.totalByClass.always ?? 0) + (report.totalByClass.startup ?? 0) : report.total;
+  if (report.totalBudget !== null && gated > report.totalBudget) {
+    out.push(`::warning title=ctxcap::${escData(`total ${gated} tokens exceeds budget ${report.totalBudget}`)}`);
   }
   for (const finding of report.findings ?? []) {
-    out.push(`::${finding.severity === 'error' ? 'error' : 'warning'} file=${escProp(finding.path)},line=${finding.line},title=ctxcap ${escData(finding.rule)}::${escData(`${finding.text} (${finding.reclaimableTokens} reclaimable tokens)`)}`);
+    out.push(`::${finding.severity === 'error' ? 'error' : 'warning'} file=${escProp(finding.path)},line=${finding.line},title=ctxcap ${escData(finding.rule)}::${escData(`${finding.ref ? `${finding.ref} does not resolve: ` : ''}${finding.text} (${finding.reclaimableTokens} reclaimable tokens)`)}`);
   }
   return out;
 }
@@ -27,7 +29,7 @@ export function summary(report) {
     .filter((f) => f.delta !== 0 || (f.budget !== null && f.tokens > f.budget))
     .map((f) => `| \`${f.path.replace(/[`|]/g, '')}\` | ${f.tokens} | ${sign(f.delta)} |`);
   return [
-    `### ctxcap: ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}`,
+    `### ctxcap: ${sign(report.delta)} tokens (${report.total} total)${report.approximate ? ', approximate' : ''}${report.acknowledged ? ' — growth accepted by the baseline updated in this change' : ''}`,
     '',
     rows.length ? ['| File | Tokens | Delta |', '| --- | --- | --- |', ...rows].join('\n') : '_No token change._',
     report.findings?.length ? `**Stale references:** ${report.findings.length} findings, ${report.reclaimableTotal} reclaimable tokens` : '',

@@ -1,6 +1,6 @@
 {
   "name": "ctxcap-mcp",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Offline MCP server for measuring, finding, and safely reducing bloated or stale AI coding-agent context files",
   "mcpName": "io.github.Naeha-S/ctxcap",
   "type": "module",
@@ -39,5 +39,4 @@
   "publishConfig": {
     "access": "public"
   }
-
 }

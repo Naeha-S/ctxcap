@@ -10,7 +10,7 @@ import { buildReport, renderText, renderSarif, exitCodeFor } from './report.js';
 import { suggest } from './suggest.js';
 import { VERSION } from './version.js';
 import { findStale, staleDiff } from './stale.js';
-import { makePlan, savePlan, loadPlan, verifyPlan } from './plan.js';
+import { makePlan, savePlan, loadPlan, verifyPlan, staleBlock } from './plan.js';
 
 const HELP = `ctxcap — token budget linter for context files
 
@@ -115,6 +115,11 @@ async function main() {
 
   const baseline = await loadBaseline(root, opts.baseline);
   const baselineCounts = baseline?.counts ?? {};
+  // Compared against a git ref (CI), growth counts as acknowledged when the
+  // same change also commits a baseline that covers every file. The baseline
+  // diff is then what a reviewer approves.
+  const committed = opts.baseline ? await loadBaseline(root, null) : null;
+  const acknowledged = Boolean(committed?.found) && files.every((file) => file.tokens <= (committed.counts[file.path] ?? -1));
   for (const file of files) file.baselineTokens = baselineCounts[file.path];
   if (opts.plan) {
     const budget = opts.budget ?? config.budgets.total;
@@ -133,7 +138,9 @@ async function main() {
     config,
     suggestions: opts.suggest ? suggest(files) : [],
     findings,
-    staleDiff: opts.staleFix ? staleDiff(files, findings) : '',
+    acknowledged,
+    // The deletion diff leaves out blocks that hold a rule; those need a hand edit.
+    staleDiff: opts.staleFix ? staleDiff(files, findings.filter((finding) => staleBlock(files.find((file) => file.path === finding.path), finding.line, config).deletable)) : '',
     budgetClasses: opts.budgetClasses
   });
 

@@ -75,3 +75,23 @@ test('MCP initialize and tools call return the current package version and repor
     proc.kill();
   }
 });
+
+test('a plan made in one server session can be verified in the next', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'ctxcap-mcp-'));
+  await writeFile(path.join(dir, 'AGENTS.md'), 'Use short instructions.');
+  const call = async (name, args) => {
+    const proc = spawn(process.execPath, [SERVER], { cwd: dir });
+    try {
+      const response = await request(proc, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
+      return JSON.parse(response.result.content[0].text);
+    } finally {
+      proc.kill();
+    }
+  };
+  const plan = await call('context_budget_plan', { budget: 1 });
+  const verified = await call('context_budget_verify', { planId: plan.planId });
+  assert.equal(verified.satisfied, false);
+  assert.deepEqual(verified.violations, []);
+  const missing = await call('context_budget_verify', { planId: 'ffffff' });
+  assert.equal(missing.error.code, 'PLAN_EXPIRED');
+});

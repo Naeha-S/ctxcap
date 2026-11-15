@@ -1,9 +1,10 @@
 import { TOKENIZER_ID, APPROXIMATE } from './tokenize.js';
+import { reclaimableTotal } from './stale.js';
 
 export const TOOL_NAME = 'ctxcap';
 export const SCHEMA_ID = 'ctxcap/v1';
 
-export function buildReport({ files, baseline, baselineFound, config, suggestions = [], findings = [], staleDiff = '', budgetClasses = {} }) {
+export function buildReport({ files, baseline, baselineFound, config, suggestions = [], findings = [], staleDiff = '', budgetClasses = {}, acknowledged = false }) {
   const baseCounts = baseline && typeof baseline === 'object' && 'counts' in baseline ? baseline.counts : (baseline ?? {});
   const isBaselineFound = baselineFound !== undefined
     ? Boolean(baselineFound)
@@ -46,16 +47,17 @@ export function buildReport({ files, baseline, baselineFound, config, suggestion
     delta,
     over,
     baselineFound: isBaselineFound,
+    acknowledged: delta > 0 && acknowledged,
     files: entries,
     suggestions,
     findings,
-    reclaimableTotal: findings.reduce((total, finding) => total + finding.reclaimableTokens, 0),
+    reclaimableTotal: reclaimableTotal(findings),
     ...(staleDiff ? { staleDiff } : {})
   };
 }
 
 export function exitCodeFor(report, failOn) {
-  if (failOn === 'increase' && report.delta > 0) return 1;
+  if (failOn === 'increase' && report.delta > 0 && !report.acknowledged) return 1;
   if (failOn === 'budget' && report.over) return 1;
   if (failOn === 'stale' && report.findings?.length) return 1;
   return 0;
@@ -70,7 +72,7 @@ export function renderText(report) {
     lines.push(`${f.tokens}\t${sign(f.delta)}\t${f.path}${flag}`);
   }
   lines.push('---');
-  lines.push(`total ${report.total} (${sign(report.delta)})`);
+  lines.push(`total ${report.total} (${sign(report.delta)})${report.acknowledged ? ' — accepted by the updated baseline' : ''}`);
   if (!report.baselineFound) {
     lines.push('no baseline found — delta is the full current size');
     lines.push(`run: ${TOOL_NAME} --update-baseline`);
@@ -78,7 +80,7 @@ export function renderText(report) {
   if (report.approximate) lines.push(`approximate count (${report.tokenizer})`);
   if (report.findings?.length) {
     lines.push(`stale findings ${report.findings.length} (reclaimable ${report.reclaimableTotal} tokens)`);
-    for (const finding of report.findings) lines.push(`${finding.rule}\t${finding.path}:${finding.line}\t${finding.text}`);
+    for (const finding of report.findings) lines.push(`${finding.rule}\t${finding.path}:${finding.line}\t${finding.ref ?? finding.text}`);
   }
   if (report.staleDiff) lines.push(report.staleDiff);
   return lines.join('\n');
@@ -96,7 +98,7 @@ export function renderSarif(report) {
     .concat((report.findings ?? []).map((finding) => ({
       ruleId: finding.rule,
       level: finding.severity === 'error' ? 'error' : 'warning',
-      message: { text: `${finding.text} (${finding.reclaimableTokens} reclaimable tokens)` },
+      message: { text: `${finding.ref ? `\`${finding.ref}\` does not resolve: ` : ''}${finding.text} (${finding.reclaimableTokens} reclaimable tokens)` },
       locations: [{ physicalLocation: { artifactLocation: { uri: finding.path }, region: { startLine: finding.line } } }]
     })));
 

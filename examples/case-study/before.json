@@ -11,6 +11,7 @@
   "delta": 1504,
   "over": false,
   "baselineFound": false,
+  "acknowledged": false,
   "files": [
     {
       "path": "AGENTS.md",

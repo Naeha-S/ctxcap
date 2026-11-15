@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { countTokens } from './tokenize.js';
-import { findStale } from './stale.js';
+import { findStale, blockRange } from './stale.js';
 
 const PLAN_DIR = '.ctxcap/plans';
 const PLAN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -14,13 +14,14 @@ function normalized(line) {
 }
 
 // Directive words. A sentence containing one is never dropped by a condense.
-const DIRECTIVE = /\b(?:must|never|always|do not|don['’]t)\b/i;
+const DIRECTIVE = /\b(?:must|never|always|do\s+not|don['’]t)\b/i;
 // Stricter test used to mark a whole paragraph load-bearing: the sentence
 // starts with a directive, or shouts one. Lowercase mid-sentence use stays editable.
-const RULE_START = /^\W*(?:must|never|always|do not|don['’]t)\b/i;
-const RULE_EMPHATIC = /\b(?:MUST|NEVER|ALWAYS|DO NOT|DON['’]T)\b/;
+const RULE_START = /^\W*(?:must|never|always|do\s+not|don['’]t)\b/i;
+const RULE_EMPHATIC = /\b(?:MUST|NEVER|ALWAYS|DO\s+NOT|DON['’]T)\b/;
 
-// Split at `.`, `!`, `?`, or `;` followed by whitespace, outside inline code.
+// Split after `.`, `!`, or `?` when the next word does not start lowercase,
+// outside inline code and not after `e.g.`, `i.e.`, `vs.`, or `cf.`.
 function sentences(text) {
   const flat = text.replace(/\s+/g, ' ').trim();
   const out = [];
@@ -28,10 +29,11 @@ function sentences(text) {
   let ticks = 0;
   for (let i = 0; i < flat.length; i++) {
     if (flat[i] === '`') ticks++;
-    else if ('.!?;'.includes(flat[i]) && ticks % 2 === 0 && (i + 1 === flat.length || flat[i + 1] === ' ')) {
-      out.push(flat.slice(start, i + 1).trim());
-      start = i + 1;
-    }
+    if (!'.!?'.includes(flat[i]) || ticks % 2 !== 0) continue;
+    const last = i + 1 === flat.length;
+    if (!last && (flat[i + 1] !== ' ' || /[a-z]/.test(flat[i + 2] ?? '') || /\b(?:e\.g|i\.e|vs|cf)$/i.test(flat.slice(0, i)))) continue;
+    out.push(flat.slice(start, i + 1).trim());
+    start = i + 1;
   }
   if (start < flat.length) out.push(flat.slice(start).trim());
   return out.filter(Boolean);
@@ -64,13 +66,33 @@ function paragraphSpans(file) {
   const lines = file.text.split('\n');
   const spans = [];
   let start = 0;
+  let fenced = false;
+  let code = false;
   for (let i = 0; i <= lines.length; i++) {
     if (i === lines.length || lines[i].trim() === '') {
-      if (start < i) spans.push({ start: start + 1, end: i, lines: lines.slice(start, i) });
+      if (start < i) spans.push({ start: start + 1, end: i, lines: lines.slice(start, i), code });
       start = i + 1;
+      code = fenced;
+      continue;
+    }
+    if (/^\s*(?:```|~~~)/.test(lines[i])) {
+      fenced = !fenced;
+      code = true;
     }
   }
   return spans;
+}
+
+// The prose part of a span that a condense may rewrite: the lines after any
+// leading headings, and only when none of them is a list item, table row,
+// quote, HTML, or code. Flattening those into one line would wreck them.
+function proseBody(span) {
+  if (span.code) return null;
+  let skip = 0;
+  while (skip < span.lines.length && HEADING.test(span.lines[skip])) skip++;
+  const lines = span.lines.slice(skip);
+  if (!lines.length || lines.some((line) => /^\s*(?:[-*+]\s|\d+[.)]\s|[|>#<]|```|~~~)|^(?: {4}|\t)/.test(line))) return null;
+  return { start: span.start + skip, end: span.end, lines };
 }
 
 function classifySpan(span, file, config = {}) {
@@ -99,6 +121,16 @@ function classifySpan(span, file, config = {}) {
   const rule = LOAD_BEARING.test(text) || sentences(body).some((part) => RULE_START.test(part) || RULE_EMPHATIC.test(part));
   const wholeSpan = Boolean(underProtectedHeading || marker);
   return { loadBearing: wholeSpan || rule, wholeSpan, text };
+}
+
+// The lines a stale finding on `line` would delete, and whether deleting them
+// is safe: not when the block is load-bearing or holds any directive sentence.
+export function staleBlock(file, line, config) {
+  const lines = file.text.split('\n');
+  const [start, end] = blockRange(lines, line - 1);
+  const span = { start: start + 1, end, lines: lines.slice(start, end) };
+  const text = span.lines.join('\n');
+  return { ...span, text, deletable: !classifySpan(span, file, config).loadBearing && !DIRECTIVE.test(text) };
 }
 
 function preserveSpans(files, config) {
@@ -184,11 +216,10 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
   const globalSeen = new Map();
   const stale = await findStale(files, root, config, { staleGlob: true });
   for (const finding of stale) {
-    const paragraph = paragraphSpans(files.find((file) => file.path === finding.path)).find((span) => span.start <= finding.line && span.end >= finding.line);
-    if (!paragraph) continue;
-    const { loadBearing } = classifySpan(paragraph, files.find((file) => file.path === finding.path), config);
-    const planned = findingFor(finding.path, paragraph.start, paragraph.end, `${finding.rule[0].toLowerCase()}${finding.rule.slice(1)}Block`, countTokens(paragraph.lines.join('\n')), finding.rule === 'stale-path' ? 0.98 : 0.92, `${finding.text} (${finding.rule})`, loadBearing);
-    planned._sourceText = paragraph.lines.join('\n');
+    const file = files.find((candidate) => candidate.path === finding.path);
+    const block = staleBlock(file, finding.line, config);
+    const planned = findingFor(finding.path, block.start, block.end, `${finding.rule[0].toLowerCase()}${finding.rule.slice(1)}Block`, countTokens(block.text), finding.rule === 'stale-path' ? 0.98 : 0.92, `\`${finding.ref}\` does not resolve (${finding.rule})`, !block.deletable);
+    planned._sourceText = block.text;
     candidates.push(planned);
   }
   for (const file of files) {
@@ -196,7 +227,7 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
     const seen = new Map();
     for (const span of spans) {
       const key = normalized(span.lines.join(' '));
-      if (!key) continue;
+      if (!key || span.code) continue;
       if (seen.has(key) || globalSeen.has(key)) {
         const canonical = seen.get(key) ?? globalSeen.get(key);
         const { loadBearing } = classifySpan(span, file, config);
@@ -212,31 +243,34 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
         globalSeen.set(key, canonical);
       }
       const { loadBearing, wholeSpan } = classifySpan(span, file, config);
-      const tokens = countTokens(span.lines.join('\n'));
-      const condensed = tokens > 300 ? safeCondense(span.lines.join(' '), maxCondenseChars, wholeSpan) : null;
+      const body = proseBody(span);
+      const tokens = body ? countTokens(body.lines.join('\n')) : 0;
+      const condensed = tokens > 300 ? safeCondense(body.lines.join(' '), maxCondenseChars, wholeSpan) : null;
       if (condensed) {
         const condensedText = condensed.text;
         const replacementTokens = countTokens(condensedText);
-        const finding = findingFor(file.path, span.start, span.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), loadBearing ? 0.5 : 0.65, loadBearing ? 'load-bearing paragraph over 300 tokens' : 'non-load-bearing paragraph over 300 tokens', loadBearing, 'condense', replacementTokens);
+        const finding = findingFor(file.path, body.start, body.end, 'largeParagraph', Math.max(0, tokens - replacementTokens), loadBearing ? 0.5 : 0.65, loadBearing ? 'load-bearing paragraph over 300 tokens' : 'non-load-bearing paragraph over 300 tokens', loadBearing, 'condense', replacementTokens);
         finding.condensedText = condensedText;
         finding._required = condensed.required;
-        finding._sourceText = span.lines.join('\n');
+        finding._sourceText = body.lines.join('\n');
         candidates.push(finding);
       }
     }
   }
   const filtered = candidates
     .filter((candidate) => candidate.tokensFreed >= minTokens)
-    .filter((candidate) => strictPreserve
-      ? !preserve.some((span) => overlaps(candidate, span))
-      : candidate.action === 'condense'
-        ? true
-        : candidate.action === 'deleteKeepingCanonical'
-          ? Boolean(candidate._canonicalSpan && !overlaps(candidate._canonicalSpan, candidate))
-          : !preserve.some((span) => overlaps(candidate, span)))
+    .filter((candidate) => {
+      const touchesPreserve = preserve.some((span) => overlaps(candidate, span));
+      if (candidate.action === 'delete') return !candidate.loadBearing && !touchesPreserve;
+      if (strictPreserve) return !touchesPreserve;
+      if (candidate.action === 'deleteKeepingCanonical') return Boolean(candidate._canonicalSpan && !overlaps(candidate._canonicalSpan, candidate));
+      return true;
+    })
     .sort(compareFindings);
-  const id = planId(filtered);
-  let selected = filtered.slice(0, maxFindings).map((finding, index) => ({ id: `${id}:${index}`, ...finding }));
+  // One finding per span: overlapping line ranges cannot both be spliced.
+  const ranked = bestNonOverlappingCandidates(filtered).sort(compareFindings);
+  const id = planId(ranked);
+  let selected = ranked.slice(0, maxFindings).map((finding, index) => ({ id: `${id}:${index}`, ...finding }));
   while (selected.length && JSON.stringify(selected).length > 10000) {
     const removable = [...selected].sort((a, b) => (a.action === 'condense') - (b.action === 'condense') || a.confidence - b.confidence)[0];
     selected = selected.filter((finding) => finding !== removable);
@@ -278,8 +312,8 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
     current,
     minAchievable,
     tokensRemaining: Math.max(0, gateCurrent - budget),
-    truncated: filtered.length > selected.length,
-    remainingFindings: Math.max(0, filtered.length - selected.length),
+    truncated: ranked.length > selected.length,
+    remainingFindings: Math.max(0, ranked.length - selected.length),
     approximate: true,
     plan: selected,
     preserve,
@@ -288,7 +322,7 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
   while (JSON.stringify(response).length > 12000 && response.plan.length) {
     response.plan.pop();
     response.truncated = true;
-    response.remainingFindings = filtered.length - response.plan.length;
+    response.remainingFindings = ranked.length - response.plan.length;
   }
   if (includeDiff) response.diffText = selected.map((finding) => `${finding.file}:${finding.startLine}-${finding.endLine} ${finding.action}`).join('\n');
   attachInternal(response, {
@@ -324,8 +358,9 @@ export async function applyPlan(plan, root) {
       const original = await readFile(target, 'utf8');
       const lines = original.split('\n');
       const sorted = [...findings].sort((a, b) => b.startLine - a.startLine);
-      for (const finding of sorted) {
+      for (const [index, finding] of sorted.entries()) {
         if (finding.startLine < 1 || finding.endLine > lines.length) throw new Error('line range drifted');
+        if (index > 0 && finding.endLine >= sorted[index - 1].startLine) throw new Error('overlapping line ranges');
         if (finding.action === 'condense') {
           lines.splice(finding.startLine - 1, finding.endLine - finding.startLine + 1, finding.condensedText);
         } else {
