@@ -230,7 +230,7 @@ test('ci: the workflow parses and pins the action to the package version', async
 // ------------------------------------------------------------------ all five
 
 const WIRED = [
-  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc',
+  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.ctxcap/badge.json', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc',
   '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', '.mcp.json', 'AGENTS.md'
 ];
 

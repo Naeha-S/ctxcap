@@ -1,5 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
+import { spawnSync } from 'node:child_process';
 import { loadConfig } from './config.js';
 import { measureFiles } from './measure.js';
 import { loadBaseline, saveBaseline, BASELINE_FILE } from './baseline.js';
@@ -32,6 +33,7 @@ Usage: ctxcap [options]
   --min-tokens <n>    minimum size of a plan finding (default: 20)
   --baseline <ref>    read baseline from a git ref (CI uses merge base)
   --update-baseline   write ${BASELINE_FILE} and exit
+  --badge             write .ctxcap/badge.json for a shields.io endpoint badge and exit
   --config <path>     config file (default: .ctxcap.json)
   --root <path>       working directory (default: .)
   --help, --version
@@ -44,7 +46,7 @@ Exit: 0 clean, 1 breach under --fail-on, 2 internal error.
 No network. No telemetry. No API key.`;
 
 function parseArgs(argv) {
-  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, budgetClasses: {}, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, failOn: null, baseline: null, config: null, root: '.' };
+  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, budgetClasses: {}, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, badge: false, failOn: null, baseline: null, config: null, root: '.' };
   const need = (i, flag) => {
     if (i + 1 >= argv.length) throw new Error(`${flag} needs a value`);
     return argv[i + 1];
@@ -71,6 +73,7 @@ function parseArgs(argv) {
     else if (a === '--max-condense-chars') o.maxCondenseChars = Number(need(i++, a));
     else if (a === '--min-tokens') o.minTokens = Number(need(i++, a));
     else if (a === '--update-baseline') o.updateBaseline = true;
+    else if (a === '--badge') o.badge = true;
     else if (a === '--help' || a === '-h') o.help = true;
     else if (a === '--version') o.version = true;
     else if (a === '--fail-on') o.failOn = need(i++, a);
@@ -109,6 +112,15 @@ export async function main(argv) {
     const counts = Object.fromEntries(files.map((f) => [f.path, f.tokens]));
     await saveBaseline(root, counts);
     console.error(`baseline written: ${files.length} files`);
+    return 0;
+  }
+
+  if (opts.badge) {
+    const { writeBadge, BADGE_FILE } = await import('./badge.js');
+    const badge = await writeBadge(root, files.reduce((sum, file) => sum + file.tokens, 0));
+    console.error(`badge written: ${BADGE_FILE} (${badge.message} tokens, ${badge.color})`);
+    const ignored = spawnSync('git', ['-C', root, 'check-ignore', '-q', BADGE_FILE]);
+    if (ignored.status === 0) console.error(`note: git ignores ${BADGE_FILE}, so it cannot be committed. Run ctxcap init --agents badge, or un-ignore that file.`);
     return 0;
   }
 

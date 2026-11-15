@@ -64,6 +64,9 @@ async function postEdit(root, input) {
   if (changed.length === 0) return null;
 
   const result = await report(root, config);
+  // Keep a committed badge in step with the files it describes.
+  const { BADGE_FILE, writeBadge } = await import('./badge.js');
+  if (await mtime(path.join(root, BADGE_FILE)) !== null) await writeBadge(root, result.total);
   const parts = result.files
     .filter((file) => changed.includes(file.path))
     .map((file) => `${file.path} is ${file.tokens} tokens${result.baselineFound ? ` (${signed(file.delta)} against the baseline)` : ''}`);

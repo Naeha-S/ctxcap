@@ -7,7 +7,7 @@ import { VERSION } from '../src/version.js';
 import { cli, repo } from './helpers.js';
 
 const statuses = (result) => Object.fromEntries(result.agents.map((entry) => [entry.agent, entry.status]));
-const ALL = (status) => ({ claude: status, cursor: status, codex: status, copilot: status, ci: status });
+const ALL = (status) => ({ claude: status, cursor: status, codex: status, copilot: status, ci: status, badge: status });
 
 test('doctor: nothing wired is fine, and a fresh init is wired everywhere', async () => {
   const dir = await repo({ 'AGENTS.md': '# Notes\n' });
@@ -29,7 +29,8 @@ test('doctor: a pin written by another version is stale, and --force brings it c
 
   const result = await doctor({ root: dir });
   assert.equal(result.ok, false);
-  assert.deepEqual(statuses(result), ALL('stale pin'));
+  // The badge carries a count, not a pin, so it cannot go stale this way.
+  assert.deepEqual(statuses(result), { ...ALL('stale pin'), badge: 'wired' });
   for (const entry of result.agents) {
     assert.ok(entry.files.every((file) => file.state === 'stale' ? file.pin === '1.2.0' : file.state === 'wired'), entry.agent);
   }

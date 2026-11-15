@@ -152,8 +152,8 @@ async function read(root, file) {
   }
 }
 
-async function survey({ root, version = VERSION, pin = true, targets }) {
-  const context = { root, version, pin };
+async function survey({ root, version = VERSION, pin = true, groups = GROUPS, force = false, targets }) {
+  const context = { root, version, pin, groups, force };
   const list = targets ?? await targetsFor(context);
   const items = [];
   for (const target of list) {
@@ -176,7 +176,7 @@ const groupState = (items, group, { exclusive = false } = {}) => {
  * write | delete | skip | unchanged | leave.
  */
 export async function planInit({ root, groups = GROUPS, remove = false, force = false, version, pin, targets }) {
-  const { context, items } = await survey({ root, version, pin, targets });
+  const { context, items } = await survey({ root, version, pin, groups, force, targets });
   const steps = [];
   for (const item of items) {
     const { target, before, state } = item;
@@ -198,10 +198,14 @@ export async function planInit({ root, groups = GROUPS, remove = false, force = 
       }
     } else if (state === 'invalid') Object.assign(step, { action: 'skip', reason: 'not valid JSON, left alone' });
     else if (state === 'custom' && (target.kind !== 'file' || !force)) Object.assign(step, { action: 'skip', reason: 'already configured' });
-    else if (state === 'managed' && !force) Object.assign(step, { action: 'skip', reason: 'already configured' });
+    else if (state === 'managed' && !force && !target.refresh) Object.assign(step, { action: 'skip', reason: 'already configured' });
     else {
+      if (typeof target.content === 'function') target.content = await target.content();
       step.after = wired(target, before, context);
-      step.action = step.after === before ? 'unchanged' : 'write';
+      // A refreshed target holds data, not configuration (the badge count): it
+      // is brought up to date on every run and only skipped when it is current.
+      if (step.after !== before) step.action = 'write';
+      else if (state === 'managed' && !force) Object.assign(step, { action: 'skip', reason: 'already configured' });
     }
     steps.push(step);
   }
@@ -248,7 +252,9 @@ export async function doctor({ root, version = VERSION, targets }) {
         return { path: item.target.path, state, ...(stale ? { pin: stale } : {}) };
       });
     const present = files.filter((file) => file.state !== 'missing' && file.state !== 'invalid');
-    const status = present.length === 0 && files.every((file) => file.state === 'missing') ? 'not wired'
+    // A file shared with another agent does not make this one wired by itself.
+    const own = items.filter((item) => item.state !== 'state' && item.target.groups.length === 1 && item.target.groups[0] === agent);
+    const status = own.every((item) => item.state === 'absent') ? 'not wired'
       : present.length < files.length ? 'partially wired'
       : files.some((file) => file.state === 'stale') ? 'stale pin'
       : 'wired';

@@ -1,7 +1,12 @@
 // What `ctxcap init` writes for each coding agent. Every target is a file that
 // can be committed, so a clone inherits the wiring without running anything.
 
-export const GROUPS = ['claude', 'cursor', 'codex', 'copilot', 'ci'];
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+export const GROUPS = ['claude', 'cursor', 'codex', 'copilot', 'ci', 'badge'];
 
 export const BEGIN = '<!-- ctxcap:begin -->';
 export const END = '<!-- ctxcap:end -->';
@@ -56,6 +61,12 @@ function hooksTarget({ groups, path, events }) {
 const mcpServer = ({ version, pin }) => ({
   command: 'npx',
   args: pin ? ['-y', '-p', `ctxcap@${version}`, 'ctxcap-mcp'] : ['-y', 'ctxcap-mcp']
+});
+
+// .ctxcap/ holds the hook stamp and saved plans, which are not source, and the
+// badge, which is. The Claude hooks and the badge both need this file.
+const stateIgnore = (groups) => ({
+  groups, path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n`
 });
 
 // ---------------------------------------------------------------- Claude Code
@@ -115,7 +126,7 @@ function claude(context) {
     }),
     keyTarget({ groups: ['claude'], path: '.mcp.json', section: 'mcpServers', name: 'ctxcap', value: mcpServer(context) }),
     // The hook keeps a stamp here and plans are saved here; none of it is source.
-    { groups: ['claude'], path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n` },
+    stateIgnore(['claude', 'badge']),
     { groups: ['claude'], path: '.ctxcap/stamp', kind: 'state' }
   ];
 }
@@ -203,6 +214,78 @@ const ci = (context) => [
   { groups: ['ci'], path: '.github/workflows/ctxcap.yml', kind: 'file', marker: MANAGED_HASH, content: workflow(context) }
 ];
 
+// ---------------------------------------------------------------- badge
+
+/** owner/name of the GitHub repository at `root`, or null. */
+export async function githubRepo(root) {
+  const sources = [];
+  const remote = spawnSync('git', ['-C', root, 'remote', 'get-url', 'origin'], { encoding: 'utf8' });
+  if (remote.status === 0) sources.push(remote.stdout.trim());
+  try {
+    const { repository } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+    sources.push(typeof repository === 'string' ? repository : repository?.url);
+  } catch { /* no package.json: the remote is the only source */ }
+  for (const source of sources) {
+    const match = /github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(source ?? '');
+    if (match) return { owner: match[1], name: match[2] };
+  }
+  return null;
+}
+
+const README_NAMES = ['README.md', 'readme.md', 'Readme.md', 'README.markdown'];
+
+async function existing(root, names) {
+  for (const name of names) {
+    try { await readFile(path.join(root, name)); return name; } catch { /* try the next spelling */ }
+  }
+  return null;
+}
+
+// The badge should show the total as it will be once init has written the
+// other targets, some of which are context files themselves.
+async function totalAfter({ root, version, pin, groups, force }, others) {
+  const [{ loadConfig }, { collectFiles }, { countTokens }, { planInit }] = await Promise.all([
+    import('./config.js'), import('./glob.js'), import('./tokenize.js'), import('./init.js')
+  ]);
+  const config = await loadConfig(root, null);
+  const planned = new Map((await planInit({ root, version, pin, groups, force, targets: others })).map((step) => [step.path, step.after]));
+
+  // Which of the files init creates does the config count? Ask the same glob,
+  // on an empty copy of the names.
+  const created = [...planned.keys()];
+  const probe = await mkdtemp(path.join(tmpdir(), 'ctxcap-probe-'));
+  let counted = [];
+  try {
+    for (const file of created) {
+      await mkdir(path.dirname(path.join(probe, file)), { recursive: true });
+      await writeFile(path.join(probe, file), '');
+    }
+    counted = await collectFiles(probe, config);
+  } finally {
+    await rm(probe, { recursive: true, force: true });
+  }
+
+  let total = 0;
+  for (const file of new Set([...await collectFiles(root, config), ...counted])) {
+    const text = planned.has(file) ? planned.get(file) : await readFile(path.join(root, file), 'utf8');
+    if (text !== null) total += countTokens(text);
+  }
+  return total;
+}
+
+async function badge(context, others) {
+  const repo = await githubRepo(context.root);
+  if (!repo) return [];
+  const { BADGE_FILE, badgeText, badgeMarkdown } = await import('./badge.js');
+  const readme = await existing(context.root, README_NAMES);
+  return [
+    // Measured only when init is about to write it: doctor and remove never need the number.
+    { groups: ['badge'], path: BADGE_FILE, kind: 'file', marker: '"schemaVersion"', refresh: true, content: async () => badgeText(await totalAfter(context, others)) },
+    ...(readme ? [{ groups: ['badge'], path: readme, kind: 'block', place: 'after-h1', lines: [badgeMarkdown(repo)] }] : []),
+    stateIgnore(['claude', 'badge'])
+  ];
+}
+
 /**
  * A target is one of four kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
@@ -211,6 +294,9 @@ const ci = (context) => [
  *   state - working state init never writes and remove clears: { path, kind }
  * `groups` lists the agents the target belongs to.
  */
-export function targetsFor(context) {
-  return [...claude(context), ...cursor(context), ...pointers(context), ...ci(context)];
+export async function targetsFor(context) {
+  const agents = [...claude(context), ...cursor(context), ...pointers(context), ...ci(context)];
+  const extra = await badge(context, agents);
+  // The Claude hooks and the badge share .ctxcap/.gitignore: list it once.
+  return [...agents, ...extra.filter((target) => !agents.some((other) => other.path === target.path))];
 }
