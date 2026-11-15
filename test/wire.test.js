@@ -201,3 +201,69 @@ test('codex and copilot: missing files are created holding only the block', asyn
   cli(dir, 'init', '--remove', '--yes');
   assert.deepEqual(await tree(dir), {});
 });
+
+// ------------------------------------------------------------------ CI
+
+test('ci: the workflow parses and pins the action to the package version', async () => {
+  const dir = await repo();
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'ci').status, 0);
+  const text = (await tree(dir))['.github/workflows/ctxcap.yml'];
+  const doc = parseYaml(text);
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+
+  assert.equal(doc.on, 'pull_request');
+  const [checkout, action] = doc.jobs.ctxcap.steps;
+  assert.equal(checkout.uses, 'actions/checkout@v4');
+  assert.equal(checkout.with['fetch-depth'], 0);
+  assert.equal(action.uses, `Naeha-S/ctxcap@v${pkg.version}`);
+  assert.deepEqual(action.with, { 'fail-on': 'never' });
+  assert.match(text, /^ +# .*"budgets": \{ "total": \d+ \}.*\n +# .*fail-on: budget$/m);
+
+  const inputs = parseYaml(await readFile('action.yml', 'utf8')).inputs;
+  for (const name of Object.keys(action.with)) assert.ok(name in inputs, `${name} is an action input`);
+
+  const loose = await repo();
+  cli(loose, 'init', '--yes', '--no-pin', '--agents', 'ci');
+  assert.equal(parseYaml((await tree(loose))['.github/workflows/ctxcap.yml']).jobs.ctxcap.steps[1].uses, 'Naeha-S/ctxcap@v1');
+});
+
+// ------------------------------------------------------------------ all five
+
+const WIRED = [
+  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc',
+  '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', '.mcp.json', 'AGENTS.md'
+];
+
+test('init: --print writes nothing, --yes writes every target, a second --yes is a byte-identical no-op', async () => {
+  const dir = await repo({ 'AGENTS.md': AGENTS, '.claude/settings.json': JSON.stringify(USER_SETTINGS, null, 2) + '\n' });
+  const before = await tree(dir);
+
+  const printed = cli(dir, 'init', '--print');
+  assert.equal(printed.status, 0);
+  assert.deepEqual(await tree(dir), before);
+  assert.equal(printed.stdout.match(/^diff --git /gm).length, WIRED.length);
+
+  const first = cli(dir, 'init', '--yes');
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(first.stdout, printed.stdout);
+  const wired = await tree(dir);
+  assert.deepEqual(Object.keys(wired).sort(), WIRED);
+  assert.deepEqual(first.stderr.trim().split('\n').sort(), WIRED.map((file) => `wrote: ${file}`).sort());
+
+  const second = cli(dir, 'init', '--yes');
+  assert.equal(second.status, 3);
+  assert.equal(second.stdout, '');
+  assert.deepEqual(second.stderr.trim().split('\n').sort(), WIRED.map((file) => `skipped: ${file} (already configured)`).sort());
+  assert.deepEqual(await tree(dir), wired);
+
+  // --force is not a skip: nothing is out of date, so nothing changes and it exits 0.
+  const forced = cli(dir, 'init', '--yes', '--force');
+  assert.equal(forced.status, 0);
+  assert.deepEqual(await tree(dir), wired);
+});
+
+test('init: --agents limits what is written', async () => {
+  const dir = await repo();
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'codex, ci').status, 0);
+  assert.deepEqual(Object.keys(await tree(dir)).sort(), ['.github/workflows/ctxcap.yml', 'AGENTS.md']);
+});

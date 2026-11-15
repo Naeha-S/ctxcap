@@ -123,11 +123,12 @@ function wired(target, text, context) {
   if (target.kind === 'block') return text !== null && blockSpan(text) ? replaceBlock(text, target) : addBlock(text, target);
   const parsed = text === null ? { doc: {}, ...NEW_JSON } : parseJson(text);
   const { doc } = parsed;
+  // Rewriting takes ours out first, so the entry and the marker always end up
+  // last and in the same order as on a first write.
   if (isObject(doc._ctxcap)) target.strip(doc);
+  delete doc._ctxcap;
   target.add(doc);
-  const marker = { version: context.version, ...(context.pin ? {} : { pin: false }) };
-  if (Object.hasOwn(doc, '_ctxcap')) doc._ctxcap = marker;
-  else Object.assign(doc, { _ctxcap: marker });
+  doc._ctxcap = { version: context.version, ...(context.pin ? {} : { pin: false }) };
   return serialize(doc, parsed);
 }
 

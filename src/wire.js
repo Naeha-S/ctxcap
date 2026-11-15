@@ -170,6 +170,38 @@ function pointers(context) {
   ];
 }
 
+// ---------------------------------------------------------------- CI
+
+function workflow({ version, pin }) {
+  return `${MANAGED_HASH}
+# Written by "ctxcap init". Reports what agent context files cost on each pull request.
+name: ctxcap
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  ctxcap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Naeha-S/ctxcap@${pin ? `v${version}` : 'v1'}
+        with:
+          fail-on: never
+          # To enforce a budget, add "budgets": { "total": 2000 } to .ctxcap.json
+          # and change the line above to: fail-on: budget
+`;
+}
+
+const ci = (context) => [
+  { groups: ['ci'], path: '.github/workflows/ctxcap.yml', kind: 'file', marker: MANAGED_HASH, content: workflow(context) }
+];
+
 /**
  * A target is one of three kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
@@ -178,5 +210,5 @@ function pointers(context) {
  * `groups` lists the agents the target belongs to.
  */
 export function targetsFor(context) {
-  return [...claude(context), ...cursor(context), ...pointers(context)];
+  return [...claude(context), ...cursor(context), ...pointers(context), ...ci(context)];
 }
