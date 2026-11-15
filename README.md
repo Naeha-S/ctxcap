@@ -300,6 +300,23 @@ any dotted or slashed inline code as a path and reported 41 findings across
 `opencode` and `langchain`, nearly all of them wrong. The rules above are what
 was left after removing every false one.
 
+### Leaderboard
+
+[`leaderboard/2026-11.md`](leaderboard/2026-11.md) ranks the 25 most-starred
+GitHub repositories that have a root `AGENTS.md` or `CLAUDE.md` by what those
+files cost. Repositories that keep every file under 200 tokens are listed as
+clean and not ranked. To build it again:
+
+```bash
+GITHUB_TOKEN=<token> npm run leaderboard -- --top 25
+```
+
+The script, `scripts/leaderboard.mjs`, lives in this repository and is not part
+of the npm package. It needs a GitHub token for the API; no scopes are
+required. Responses are cached under `.ctxcap/cache/`, so a second run makes no
+network calls and writes the same file; pass `--refresh` for new data. Delta is
+measured against the previous month's file.
+
 ## Trim to a budget
 
 When a file is over budget, agents tend to rewrite it from memory and drop the

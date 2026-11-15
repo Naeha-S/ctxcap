@@ -11,7 +11,8 @@
     "src",
     "mcp",
     "schema",
-    "scripts",
+    "scripts/annotate.mjs",
+    "scripts/comment.mjs",
     "examples",
     "action.yml",
     "llms.txt",
@@ -23,7 +24,8 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "mcp": "node mcp/server.js"
+    "mcp": "node mcp/server.js",
+    "leaderboard": "node scripts/leaderboard.mjs"
   },
   "dependencies": {
     "fast-glob": "3.3.2",
