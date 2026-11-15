@@ -1,6 +1,6 @@
 ---
 name: ctxcap
-description: Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed.
+description: Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed. Typical requests are "my CLAUDE.md is getting long", "how many tokens does AGENTS.md cost", "the agent stopped following a rule".
 ---
 
 <!-- ctxcap:managed -->

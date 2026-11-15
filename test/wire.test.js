@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { countTokens } from '../src/tokenize.js';
-import { SKILL_DESCRIPTION, AGENT_RULES, GROUPS, DEFAULT_GROUPS } from '../src/wire.js';
+import { SKILL_DESCRIPTION, SKILL_TRIGGERS, AGENT_RULES, GROUPS, DEFAULT_GROUPS } from '../src/wire.js';
 import { VERSION } from '../src/version.js';
 import { CLI, cli, repo, tree } from './helpers.js';
 
@@ -25,14 +25,24 @@ const USER_SETTINGS = {
 
 // ------------------------------------------------------------------ Claude Code
 
-test('claude: the skill has the agreed frontmatter, under 60 tokens, and pinned commands', async () => {
+test('claude: the skill description is short, names three requests, and the commands are pinned', async () => {
   const dir = await repo();
   assert.equal(cli(dir, 'init', '--yes', '--agents', 'claude').status, 0);
   const skill = (await tree(dir))['.claude/skills/ctxcap/SKILL.md'];
   const { raw, data, body } = frontmatter(skill);
   assert.deepEqual(data, { name: 'ctxcap', description: SKILL_DESCRIPTION });
-  assert.equal(data.description, 'Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed.');
-  assert.ok(countTokens(raw) < 60, `frontmatter is ${countTokens(raw)} tokens`);
+
+  // The description is what the agent matches a request against.
+  assert.ok(data.description.length < 400, `description is ${data.description.length} characters`);
+  assert.ok(data.description.startsWith('Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed.'));
+  const phrases = data.description.match(/"[^"]+"/g).map((phrase) => phrase.slice(1, -1));
+  assert.deepEqual(phrases, SKILL_TRIGGERS);
+  assert.equal(phrases.length, 3);
+  assert.ok(phrases.includes('my CLAUDE.md is getting long'));
+  // Its cost in every session, which the README states.
+  assert.ok(countTokens(raw) < 100, `frontmatter is ${countTokens(raw)} tokens`);
+  const readme = await readFile('README.md', 'utf8');
+  assert.ok(readme.includes(`${countTokens(raw)} tokens per session for the skill's name and description, ${countTokens(skill)} once the skill loads`));
 
   for (const command of ['--plan --budget <n>', '--plan --budget <n> --apply', '--verify <planId>', '--json', '--stale --json']) {
     assert.ok(body.includes(`npx ctxcap@${VERSION} ${command}`), command);
@@ -387,4 +397,40 @@ test('ci: --force replaces a hand-written workflow only at the path init writes'
   const blocked = cli(unrelated, 'init', '--yes', '--agents', 'ci');
   assert.equal(blocked.status, 3);
   assert.match(blocked.stderr, /^skipped: \.github\/workflows\/ctxcap\.yml \(not written by ctxcap init; --force overwrites it\)$/m);
+});
+
+test('README: "What it runs" lists every command init writes, word for word', async () => {
+  const dir = await repo({ 'README.md': '# W\n' });
+  assert.equal(cli(dir, 'init', '--yes', '--agents', GROUPS.join(',')).status, 0);
+  const files = await tree(dir);
+  const found = new Map();
+  const note = (file, command) => found.set(`${file}  ${command}`, { file, command });
+
+  for (const [file, text] of Object.entries(files)) {
+    if (file.endsWith('.json')) {
+      const doc = JSON.parse(text);
+      for (const groups of Object.values(doc.hooks ?? {})) for (const group of groups) for (const entry of group.hooks) note(file, entry.command);
+      for (const server of Object.values(doc.mcpServers ?? {})) note(file, [server.command, ...server.args].join(' '));
+    } else if (/\.ya?ml$/.test(file)) {
+      for (const match of text.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) note(file, match[1]);
+    } else {
+      for (const match of text.matchAll(/npx (?:-\S+ )*ctxcap@\d+\.\d+\.\d+(?: [^`#\n]*)?/g)) note(file, match[0].trim());
+    }
+  }
+  // Every agent writes at least one command, apart from the badge, which runs nothing.
+  const sources = [...new Set([...found.values()].map((entry) => entry.file))].sort();
+  assert.deepEqual(sources, ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc', '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', '.mcp.json', 'AGENTS.md']);
+
+  const readme = await readFile('README.md', 'utf8');
+  const section = readme.slice(readme.indexOf('### What it runs'), readme.indexOf('| Flag | Effect |'));
+  assert.ok(section.length > 500);
+  const documented = [];
+  let current = '';
+  for (const line of section.split('\n').filter((row) => row.startsWith('|') && !row.startsWith('| ---') && !row.startsWith('| Written to'))) {
+    const [where, command] = line.split('|').slice(1).map((cell) => cell.trim());
+    current = where || current;
+    for (const file of current.match(/`[^`]+`/g)) documented.push(`${file.slice(1, -1)}  ${command.slice(1, -1)}`);
+  }
+  // Nothing written is missing from the table, and the table lists nothing that is not written.
+  assert.deepEqual(documented.sort(), [...found.keys()].sort());
 });

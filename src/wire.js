@@ -80,7 +80,11 @@ const stateIgnore = () => [
 
 // ---------------------------------------------------------------- Claude Code
 
-export const SKILL_DESCRIPTION = 'Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed.';
+// What the agent matches a request against. The three quoted phrases are the
+// ways people actually say it; keep the whole line under 400 characters and
+// free of ": ", which would end a plain YAML scalar.
+export const SKILL_TRIGGERS = ['my CLAUDE.md is getting long', 'how many tokens does AGENTS.md cost', 'the agent stopped following a rule'];
+export const SKILL_DESCRIPTION = `Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed. Typical requests are ${SKILL_TRIGGERS.map((phrase) => `"${phrase}"`).join(', ')}.`;
 
 // The three rules are the ones the README gives; a test keeps them identical.
 export const AGENT_RULES = `1. Splice by \`startLine\`/\`endLine\`. Never rewrite a file from scratch.

@@ -80,7 +80,7 @@ Nothing is installed, and nothing runs at install time.
 
 | Agent | `--agents` | Files | Cost in the context window |
 | --- | --- | --- | --- |
-| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, `.ctxcap/.gitignore` | 53 tokens per session for the skill's name and description, 292 once the skill loads |
+| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, `.ctxcap/.gitignore` | 84 tokens per session for the skill's name and description, 323 once the skill loads |
 | Cursor | `cursor` | `.cursor/rules/ctxcap.mdc` | 140 tokens when a `CLAUDE.md` or `AGENTS.md` is in the conversation |
 | Codex | `codex` | A 2-line block in `AGENTS.md` | 51 tokens per session |
 | Copilot | `copilot` | A 3-line block in `.github/copilot-instructions.md` | 101 tokens per session |
@@ -92,7 +92,7 @@ The costs are counted by `ctxcap` itself and are approximate. The blocks in
 `AGENTS.md` and the Copilot file, and the Cursor rule, are context files, so
 they show up in your own report. The MCP server is not written by default: it
 costs about 500 tokens in every session and starts a server process, for the
-same measure, plan, and verify steps the skill gives Claude Code for 53. What
+same measure, plan, and verify steps the skill gives Claude Code for 84. What
 it adds is the same tools in Claude Code and Cursor. To include it, name it:
 `npx ctxcap init --yes --agents claude,mcp`.
 
@@ -105,6 +105,39 @@ The two Claude Code hooks stay quiet unless there is something to say:
 
 Each hook starts `npx`, which takes about a second once the package is cached.
 That second is added to every edit Claude Code makes.
+
+### What it runs
+
+`init` runs nothing: it writes files. These are the commands those files
+contain, word for word, and when each one runs. Every `npx` command downloads
+`ctxcap` from npm the first time and uses the npm cache after that. `ctxcap`
+itself makes no network calls.
+
+| Written to | Command | Runs |
+| --- | --- | --- |
+| `.claude/settings.json` | `npx -y ctxcap@1.5.0 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
+| `.claude/settings.json` | `npx -y ctxcap@1.5.0 hook stop` | Each time Claude Code finishes responding |
+| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.5.0 --json` | When the agent follows the skill |
+| | `npx ctxcap@1.5.0 --stale --json` | |
+| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
+| | `npx ctxcap@1.5.0 --plan --budget <n> --apply` | |
+| | `npx ctxcap@1.5.0 --verify <planId>` | |
+| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.5.0 --json` | When Cursor follows the rule |
+| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
+| | `npx ctxcap@1.5.0 --verify <planId>` | |
+| `AGENTS.md` | `npx ctxcap@1.5.0 --json` | When the agent follows the instruction |
+| `.github/copilot-instructions.md` | `npx ctxcap@1.5.0 --json` | When Copilot follows the instruction |
+| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
+| `.github/workflows/ctxcap.yml` | `actions/checkout@v4` | On every pull request |
+| | `Naeha-S/ctxcap@v1.5.0` | |
+| `.mcp.json`, `.cursor/mcp.json` | `npx -y -p ctxcap@1.5.0 ctxcap-mcp` | When the client starts, with `--agents mcp` only |
+
+What they write: the post-edit hook touches `.ctxcap/post-edit.stamp` and, if
+`.ctxcap/badge.json` exists, rewrites it. `--plan` saves the plan under
+`.ctxcap/plans/`. Only `--plan --budget <n> --apply` edits a context file, and
+only an agent or a person runs it; no hook and no workflow does. With
+`--no-pin` the same commands are written without `@1.5.0`, and the action as
+`Naeha-S/ctxcap@v1`.
 
 | Flag | Effect |
 | --- | --- |
