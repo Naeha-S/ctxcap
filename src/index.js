@@ -30,6 +30,7 @@ Usage: ctxcap [options]
   --budget-class <class>=<n> budget for a load class
   --strict-preserve    exclude all load-bearing spans from plans
   --max-condense-chars <n>  maximum condensed replacement length (default: 320)
+  --min-tokens <n>    minimum size of a plan finding (default: 20)
   --baseline <ref>    read baseline from a git ref (CI uses merge base)
   --update-baseline   write ${BASELINE_FILE} and exit
   --config <path>     config file (default: .ctxcap.json)
