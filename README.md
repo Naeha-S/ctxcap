@@ -83,7 +83,7 @@ jobs:
         with: { fail-on: increase }
 ```
 
-Pin `Naeha-S/ctxcap@v1.4.0` if you want reproducible runs. A complete workflow
+Pin `Naeha-S/ctxcap@v1.5.0` if you want reproducible runs. A complete workflow
 is in [`examples/pull-request.yml`](examples/pull-request.yml).
 
 The action posts one comment on the pull request and updates it in place:

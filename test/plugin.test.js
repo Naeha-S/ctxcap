@@ -13,7 +13,7 @@ test('plugin manifest version follows package.json', async () => {
 });
 
 test('each skill is named after its directory and only uses documented flags', async () => {
-  const cli = await readFile(new URL('../src/index.js', import.meta.url), 'utf8');
+  const cli = await readFile(new URL('../src/cli.js', import.meta.url), 'utf8');
   const root = new URL('../skills/', import.meta.url);
   const names = await readdir(root);
   assert.ok(names.length > 0);
