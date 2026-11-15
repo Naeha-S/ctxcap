@@ -76,7 +76,10 @@ async function postEdit(root, input) {
 }
 
 /** When the agent stops: the same check as `--json --fail-on budget`. */
-async function stop(root) {
+async function stop(root, input) {
+  // Set when a Stop hook has already sent the agent back to work once. Ours
+  // never does, but if another one did, the user has seen this line already.
+  if (input.stop_hook_active === true) return null;
   const config = await loadConfig(root, null);
   const result = await report(root, config);
   if (!result.over) return null;
@@ -89,7 +92,7 @@ export async function hookCli(argv) {
     const root = path.resolve(process.env.CLAUDE_PROJECT_DIR || '.');
     let output;
     if (argv[0] === 'post-edit') output = await postEdit(root, await stdinJson());
-    else if (argv[0] === 'stop') output = await stop(root);
+    else if (argv[0] === 'stop') output = await stop(root, await stdinJson());
     else throw new Error(`unknown hook "${argv[0] ?? ''}"; expected post-edit or stop`);
     if (output) process.stdout.write(JSON.stringify(output) + '\n');
     return 0;

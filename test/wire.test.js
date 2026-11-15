@@ -139,6 +139,40 @@ test('hook stop: silent under budget, one message for the user over it, never ex
 
 // ------------------------------------------------------------------ Cursor
 
+test('hook stop: three stops in a row over budget never send the agent back to work', async () => {
+  const dir = await repo({ 'AGENTS.md': WORDS.repeat(40), '.ctxcap.json': JSON.stringify({ budgets: { total: 100 } }) });
+  cli(dir, 'init', '--yes', '--agents', 'claude');
+  const before = await tree(dir);
+  const input = { session_id: 'abc', hook_event_name: 'Stop', cwd: dir, stop_hook_active: false };
+
+  // What would make Claude Code continue instead of stopping: exit code 2, or
+  // a "block" decision. The hook does neither, however often it is asked.
+  for (let turn = 1; turn <= 3; turn++) {
+    const result = hook(dir, 'stop', input);
+    assert.equal(result.status, 0, `turn ${turn}`);
+    assert.equal(result.stderr, '', `turn ${turn}`);
+    const output = JSON.parse(result.stdout);
+    assert.deepEqual(Object.keys(output), ['systemMessage'], `turn ${turn}`);
+    assert.match(output.systemMessage, /^ctxcap: context files are at \d+ tokens, over the 100 budget\./);
+  }
+  // Nothing accumulates between stops that a later one could trip over.
+  assert.deepEqual(await tree(dir), before);
+
+  // Had another Stop hook already sent the agent back once, ours has said its line: silence.
+  for (let turn = 1; turn <= 3; turn++) {
+    const again = hook(dir, 'stop', { ...input, stop_hook_active: true });
+    assert.deepEqual([again.status, again.stdout, again.stderr], [0, '', ''], `turn ${turn}`);
+  }
+  // No input, or input that is not JSON, is still a clean exit.
+  assert.equal(hook(dir, 'stop').status, 0);
+  const junk = spawnSync('node', [CLI, 'hook', 'stop'], { cwd: dir, encoding: 'utf8', input: 'not json', env: { ...process.env, CLAUDE_PROJECT_DIR: dir } });
+  assert.equal(junk.status, 0);
+
+  // The hook as written to settings.json is a plain command with a timeout: no prompt or agent hook that could decide to block.
+  const stop = JSON.parse(before['.claude/settings.json']).hooks.Stop;
+  assert.deepEqual(stop, [{ hooks: [{ type: 'command', command: `npx -y ctxcap@${VERSION} hook stop`, timeout: 60 }] }]);
+});
+
 test('cursor: the rule has valid YAML frontmatter that attaches to context files only', async () => {
   const servers = JSON.stringify({ mcpServers: { linear: { url: 'https://mcp.linear.app' } } }, null, 2) + '\n';
   const dir = await repo({ '.cursor/mcp.json': servers });
