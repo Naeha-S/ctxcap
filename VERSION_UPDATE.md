@@ -7,8 +7,10 @@ repository search.
 
 1. `package.json` — update the CLI package `version`.
 2. `packages/ctxcap-mcp/package.json` — update the MCP package `version` and
-   its `ctxcap` dependency range.
-3. `server.json` — update the MCP Registry `version` and npm package version.
+   set its `ctxcap` dependency range to `^X.Y.Z`; a test fails when the range
+   does not start at the CLI version.
+3. `server.json` — update the MCP Registry `version` and npm package version;
+   a test fails when either differs from the MCP package.
 4. `package-lock.json` — regenerate with `npm install --package-lock-only`;
    never edit the resolved package integrity by hand.
 5. `src/version.js` — no literal version is needed; it reads `package.json`.
