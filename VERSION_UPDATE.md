@@ -18,7 +18,16 @@ repository search.
 7. Release examples — update pinned `Naeha-S/ctxcap@vX.Y.Z`; keep `@v1` only
    as the moving major alias. The repository's own workflow runs the action
    from the checkout (`uses: ./`) and needs no change.
-8. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
+8. The repository's own wiring — run `node src/index.js init --yes --force`
+   so the pins in `.claude/`, `.cursor/`, `.mcp.json`, `AGENTS.md`, and
+   `.github/copilot-instructions.md` move to the new version, then
+   `node src/index.js --update-baseline`. `node src/index.js doctor` must exit
+   0; a test fails when it does not. Exit 3 from `init` is expected here: the
+   hand-written `.github/workflows/ctxcap.yml` is skipped.
+9. Publish to npm before merging to `main`, or straight after. The wiring that
+   `init` writes runs `npx ctxcap@X.Y.Z` and `Naeha-S/ctxcap@vX.Y.Z`, and both
+   fail until that version and tag exist.
+10. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
 
 ## Required checks
 

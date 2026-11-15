@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "ctxcap": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "ctxcap@1.5.0",
+        "ctxcap-mcp"
+      ]
+    }
+  },
+  "_ctxcap": {
+    "version": "1.5.0"
+  }
+}

@@ -1,5 +1,9 @@
 # ctxcap
 
+<!-- ctxcap:begin -->
+[![context tokens](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNaeha-S%2Fctxcap%2FHEAD%2F.ctxcap%2Fbadge.json)](https://github.com/Naeha-S/ctxcap)
+<!-- ctxcap:end -->
+
 [![npm](https://img.shields.io/npm/v/ctxcap)](https://www.npmjs.com/package/ctxcap)
 [![ci](https://github.com/Naeha-S/ctxcap/actions/workflows/ci.yml/badge.svg)](https://github.com/Naeha-S/ctxcap/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/ctxcap)](LICENSE)
@@ -61,6 +65,122 @@ git commit -m "Add ctxcap baseline"
 ```
 
 To pin it as a dev dependency instead of using `npx`: `npm i -D ctxcap`.
+
+## Wire it up
+
+```bash
+npx ctxcap init          # print the diff of every file it would touch
+npx ctxcap init --yes    # write them
+```
+
+Agents do not search npm. They read the config that is already in the
+repository. `init` writes that config for each agent, and you commit it, so
+every clone and every teammate's agent has `ctxcap` without running anything.
+Nothing is installed, and nothing runs at install time.
+
+| Agent | `--agents` | Files | Cost in the context window |
+| --- | --- | --- | --- |
+| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, a server in `.mcp.json`, `.ctxcap/.gitignore` | 53 tokens per session for the skill's name and description, 292 once the skill loads, and about 500 for the four MCP tool definitions |
+| Cursor | `cursor` | `.cursor/rules/ctxcap.mdc`, a server in `.cursor/mcp.json` | 140 tokens when a `CLAUDE.md` or `AGENTS.md` is in the conversation, and the same MCP tool definitions |
+| Codex | `codex` | A 2-line block in `AGENTS.md` | 51 tokens per session |
+| Copilot | `copilot` | A 3-line block in `.github/copilot-instructions.md` | 101 tokens per session |
+| CI | `ci` | `.github/workflows/ctxcap.yml` | None |
+| README badge | `badge` | `.ctxcap/badge.json`, one line under the README title | None |
+
+The costs are counted by `ctxcap` itself and are approximate. The blocks in
+`AGENTS.md` and the Copilot file, and the Cursor rule, are context files, so
+they show up in your own report. The MCP server is the largest item: leave it
+out with `--agents` if the skill is enough, since both expose the same steps.
+
+The two Claude Code hooks stay quiet unless there is something to say:
+
+- After an edit to a context file, the agent gets one line with the new count
+  and the total. Other edits print nothing.
+- When the agent stops, you get one line if the total is over the budget in
+  `.ctxcap.json`. It never blocks the agent from stopping.
+
+Each hook starts `npx`, which takes about a second once the package is cached.
+That second is added to every edit Claude Code makes.
+
+| Flag | Effect |
+| --- | --- |
+| `--yes` | Write the files. Without it, nothing is written |
+| `--print` | Print the diff and exit 0 |
+| `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge` (default: all) |
+| `--remove` | Undo what `init` wrote |
+| `--force` | Rewrite targets that are already configured, for example after an upgrade |
+| `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.0` |
+
+Commands are pinned to the version that wrote them, so a release cannot
+change what your agents run until you choose to upgrade. A target that is
+already configured is reported as `skipped: <path> (already configured)`.
+Exit codes: `0` done, `3` when a target was skipped without `--force`, `2` for
+a bad flag.
+
+### Every write is reversible
+
+- Markdown gets a block between `<!-- ctxcap:begin -->` and
+  `<!-- ctxcap:end -->`. Text outside the block is never changed.
+- JSON files are parsed and merged, never rewritten. Your keys keep their
+  order, indentation, and line endings. A top-level `_ctxcap` key records the
+  version that wrote the entries.
+- Files that `init` creates whole (the skill, the Cursor rule, the workflow,
+  `.ctxcap/.gitignore`) carry a `ctxcap:managed` marker. A file at one of those
+  paths without the marker is yours, and `init` leaves it alone.
+
+```bash
+npx ctxcap init --remove          # print what would be removed
+npx ctxcap init --remove --yes    # remove it
+```
+
+`--remove` deletes the blocks, the marked JSON entries, the files `init`
+created, and any file or directory that ends up empty. The test suite checks
+that `init --yes` followed by `init --remove --yes` leaves the repository
+byte-for-byte as it was, including one that already had hooks and an
+`AGENTS.md`.
+
+### Check the wiring
+
+```bash
+npx ctxcap doctor
+```
+
+```text
+claude   wired
+cursor   not wired
+codex    stale pin: AGENTS.md has 1.4.0, current is 1.5.0
+copilot  partially wired: missing .github/copilot-instructions.md
+ci       wired
+badge    wired
+```
+
+`doctor` exits 1 when an agent is partially wired or pinned to a different
+version than the one running, and 0 otherwise. `--json` prints the same as
+JSON. `npx ctxcap init --yes --force` brings stale pins up to date.
+
+### Badge
+
+```bash
+npx ctxcap --badge
+```
+
+writes `.ctxcap/badge.json` in the shields.io
+[endpoint format](https://shields.io/badges/endpoint-badge):
+
+```json
+{"schemaVersion":1,"label":"context","message":"476","color":"green"}
+```
+
+Under 500 tokens is green, under 2,000 is yellow, and anything above is red.
+`init` adds the badge under the README title, pointing at the raw GitHub URL of
+that file on the default branch.
+
+shields.io fetches the file over the public internet, so the badge only works
+when the file is committed to a public repository. On a private repository it
+shows an error. The number is as fresh as the last commit of `badge.json`: the
+Claude Code hook rewrites it after a context file changes, and otherwise you
+run `npx ctxcap --badge` before you commit. `init` skips the badge when the
+repository has no GitHub remote.
 
 ## Gate pull requests
 
@@ -216,9 +336,16 @@ that every rule sentence of a condensed paragraph is still present. It cannot
 tell whether what remains still means the same thing, or whether an unmarked
 instruction was important. Review the diff before you commit it.
 
+The plan JSON includes `verifyCommand`, the exact pinned command that checks
+that plan, for example `npx ctxcap@1.5.0 --verify 6b8e55`. It is also printed
+on its own line on stderr. While no agent in the repository is wired, the plan
+carries an `initHint` that points at `ctxcap init`.
+
 Plans are saved to `.ctxcap/plans/<planId>.json` and expire after 24 hours;
-after that `--verify` returns `PLAN_EXPIRED`. Add `.ctxcap/` to `.gitignore`.
-Run `--apply` on a clean tree, and do not run it in CI.
+after that `--verify` returns `PLAN_EXPIRED`. Keep them out of git:
+`ctxcap init` writes a `.ctxcap/.gitignore` that does, or add `.ctxcap/plans/`
+to your own `.gitignore`. Run `--apply` on a clean tree, and do not run it in
+CI.
 
 [`examples/case-study/`](examples/case-study/) holds a run you can reproduce:
 two context files go from 1,504 tokens to 228 at budget 400, both rules
@@ -235,7 +362,9 @@ git checkout examples/case-study    # restore
 ## Use it from a coding agent
 
 Agents do not go looking for tools. They use what is installed, and what the
-repository tells them to run. There are three ways to give them `ctxcap`.
+repository tells them to run. [`ctxcap init`](#wire-it-up) sets all of this up
+for a repository in one step. To set up one piece by hand, or for yourself
+rather than for a repository, there are three ways.
 
 **As a skill.** The agent loads it only when you ask about context size or
 stale references, and it runs the CLI with `npx`. Nothing is added to the
@@ -291,6 +420,14 @@ so one line is enough:
 
 ## CLI
 
+| Command | Effect |
+| --- | --- |
+| `ctxcap` | Measure the context files and print the table |
+| `ctxcap init` | Wire `ctxcap` into the repository's coding agents. See [Wire it up](#wire-it-up) |
+| `ctxcap init --remove` | Undo that |
+| `ctxcap doctor` | Report whether the wiring is complete and current |
+| `ctxcap hook post-edit\|stop` | What the Claude Code hooks run. Not meant to be run by hand |
+
 | Flag | Effect |
 | --- | --- |
 | `--json` | Machine-readable JSON report on stdout |
@@ -302,6 +439,7 @@ so one line is enough:
 | `--fail-on increase\|budget\|stale\|never` | When to exit 1 (default: `never`) |
 | `--baseline <ref>` | Read the baseline from a git ref (CI uses the merge base) |
 | `--update-baseline` | Write `ctxcap-baseline.json` and exit |
+| `--badge` | Write `.ctxcap/badge.json` for a shields.io badge and exit |
 | `--config <path>` | Config file path (default: `.ctxcap.json`) |
 | `--root <path>` | Working directory (default: `.`) |
 | `--plan` | Print a ranked edit plan |

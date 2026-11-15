@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir, rm, rmdir } from 'node:fs/promises';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { unifiedDiff } from './diff.js';
 import { VERSION } from './version.js';
@@ -354,6 +355,14 @@ export async function initCli(argv, { version = VERSION } = {}) {
   const verb = { write: write ? 'wrote' : 'would write', delete: write ? 'deleted' : 'would delete', skip: 'skipped', unchanged: 'unchanged', leave: 'left' };
   for (const step of steps) {
     console.error(`${verb[step.action]}: ${step.path}${step.reason ? ` (${step.reason})` : ''}`);
+  }
+  // The wiring only reaches other clones if git tracks it.
+  if (!opts.remove) {
+    const written = steps.filter((step) => step.action === 'write' && step.before === null).map((step) => step.path);
+    const ignored = written.length ? spawnSync('git', ['-C', root, 'check-ignore', ...written], { encoding: 'utf8' }) : null;
+    for (const file of ignored?.status === 0 ? ignored.stdout.split(/\r?\n/).filter(Boolean) : []) {
+      console.error(`warning: git ignores ${file}, so it will not ship with the repository. Remove the rule that matches it from .gitignore.`);
+    }
   }
   const pending = steps.some((step) => step.action === 'write' || step.action === 'delete');
   if (steps.length === 0) console.error(opts.remove ? 'nothing to remove' : 'nothing to do');

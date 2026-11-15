@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { planInit, applySteps, doctor } from '../src/init.js';
 import { VERSION } from '../src/version.js';
@@ -71,4 +71,14 @@ test('doctor: unpinned and hand-written wiring both count as wired', async () =>
   const report = cli(custom, 'doctor');
   assert.equal(report.status, 0);
   assert.match(report.stdout, /^ci {7}wired: \.github\/workflows\/ctxcap\.yml not written by ctxcap init$/m);
+});
+
+test('doctor: this repository is wired by its own init, at the current version', async () => {
+  const result = await doctor({ root: process.cwd() });
+  assert.equal(result.ok, true, JSON.stringify(result.agents.filter((entry) => entry.status !== 'wired')));
+  assert.deepEqual(statuses(result), ALL('wired'));
+  assert.equal(cli(process.cwd(), 'doctor').status, 0);
+  // The committed badge shows the number the tool reports today.
+  const badge = JSON.parse(await readFile('.ctxcap/badge.json', 'utf8'));
+  assert.equal(badge.message, String(JSON.parse(cli(process.cwd(), '--json').stdout).total));
 });

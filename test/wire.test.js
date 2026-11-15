@@ -267,3 +267,12 @@ test('init: --agents limits what is written', async () => {
   assert.equal(cli(dir, 'init', '--yes', '--agents', 'codex, ci').status, 0);
   assert.deepEqual(Object.keys(await tree(dir)).sort(), ['.github/workflows/ctxcap.yml', 'AGENTS.md']);
 });
+
+test('init: warns when git would ignore a file it writes', async () => {
+  const dir = await repo({ '.gitignore': '.ctxcap/\n.claude/\n' });
+  const result = cli(dir, 'init', '--yes', '--agents', 'claude,codex');
+  assert.equal(result.status, 0);
+  const warned = result.stderr.split('\n').filter((line) => line.startsWith('warning: git ignores ')).map((line) => line.split(' ')[3].replace(/,$/, ''));
+  assert.deepEqual(warned.sort(), ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore']);
+  assert.doesNotMatch(cli(await repo(), 'init', '--yes').stderr, /warning:/);
+});

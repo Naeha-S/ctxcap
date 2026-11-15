@@ -28,3 +28,8 @@ No network. No telemetry. No API key. Counts are approximate —
 compare deltas, not absolute values.
 
 Keep the workflow reproducible and concise. Run the measurement before changing context files, inspect the JSON fields rather than guessing from formatted text, identify whether a file is always loaded, startup loaded, conditionally loaded, or manual, and preserve load-bearing rules. When a finding is available, apply only the stated line range, review the resulting diff, remeasure the file, and verify the saved plan.
+
+<!-- ctxcap:begin -->
+`npx ctxcap@1.5.0 --json` counts the tokens in agent context files such as this one.
+Run it before and after you edit one, and report the change.
+<!-- ctxcap:end -->
