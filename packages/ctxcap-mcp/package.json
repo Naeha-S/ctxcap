@@ -24,7 +24,7 @@
     "prompt-engineering"
   ],
   "dependencies": {
-    "ctxcap": "^1.3.0"
+    "ctxcap": "^1.4.0"
   },
   "repository": {
     "type": "git",
