@@ -104,18 +104,25 @@ That second is added to every edit Claude Code makes.
 
 | Flag | Effect |
 | --- | --- |
-| `--yes` | Write the files. Without it, nothing is written |
+| `--yes` | Apply the diff. Without it, nothing is written |
 | `--print` | Print the diff and exit 0 |
 | `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge` (default: all) |
 | `--remove` | Undo what `init` wrote |
-| `--force` | Rewrite targets that are already configured, for example after an upgrade |
+| `--force` | Overwrite a file or entry at a `ctxcap` path that `init` did not write |
 | `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.0` |
 
 Commands are pinned to the version that wrote them, so a release cannot
-change what your agents run until you choose to upgrade. A target that is
-already configured is reported as `skipped: <path> (already configured)`.
-Exit codes: `0` done, `3` when a target was skipped without `--force`, `2` for
-a bad flag.
+change what your agents run until you choose to upgrade. To upgrade, run
+`init --yes` with the new version: it brings everything `init` wrote up to
+date, pins included. A target that is already current is reported as
+`skipped: <path> (already configured)`, and running `init --yes` twice changes
+nothing the second time.
+
+`--yes` only ever touches what `init` wrote. If something `init` did not write
+sits where a target would go, such as a hand-written workflow or your own
+`ctxcap` entry in a JSON file, it is left alone and reported, and the exit code
+is 3. `--force` overwrites it. Exit codes: `0` done, `3` when a target was left
+alone and needs `--force`, `2` for a bad flag.
 
 ### Every write is reversible
 
@@ -156,7 +163,7 @@ badge    wired
 
 `doctor` exits 1 when an agent is partially wired or pinned to a different
 version than the one running, and 0 otherwise. `--json` prints the same as
-JSON. `npx ctxcap init --yes --force` brings stale pins up to date.
+JSON. `npx ctxcap init --yes` brings stale pins up to date.
 
 ### Badge
 

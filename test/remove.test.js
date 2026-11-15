@@ -60,7 +60,7 @@ test('remove: hand-written files at ctxcap paths and edits around the block surv
   const dir = await repo({ ...FIXTURE, '.github/workflows/ctxcap.yml': workflow });
   const first = cli(dir, 'init', '--yes');
   assert.equal(first.status, 3);
-  assert.match(first.stderr, /skipped: \.github\/workflows\/ctxcap\.yml \(already configured\)/);
+  assert.match(first.stderr, /skipped: \.github\/workflows\/ctxcap\.yml \(not written by ctxcap init; --force overwrites it\)/);
 
   const agents = path.join(dir, 'AGENTS.md');
   const wired = (await tree(dir))['AGENTS.md'];

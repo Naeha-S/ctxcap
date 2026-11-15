@@ -4,22 +4,27 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { unifiedDiff } from './diff.js';
 import { VERSION } from './version.js';
-import { GROUPS, BEGIN, END, targetsFor } from './wire.js';
+import { GROUPS, DEFAULT_GROUPS, BEGIN, END, targetsFor } from './wire.js';
 
 const HELP = `ctxcap init — wire ctxcap into the coding agents a repository uses
 
 Usage: ctxcap init [options]
 
-  --yes               write the files (without it, nothing is written)
+  --yes               apply the diff (without it, nothing is written)
   --print             print the diff and exit 0
-  --agents <list>     comma-separated subset of ${GROUPS.join(',')} (default: all)
-  --remove            undo what init wrote
-  --force             rewrite targets that are already configured
+  --agents <list>     comma-separated subset of ${GROUPS.join(',')}
+                      (default: ${DEFAULT_GROUPS.join(',')}; mcp is opt-in)
+  --remove            undo what init wrote, for every agent unless --agents is given
+  --force             overwrite targets that ctxcap init did not write
   --no-pin            write "npx ctxcap" instead of "npx ctxcap@${VERSION}"
   --root <path>       repository root (default: .)
 
+--yes brings everything init wrote up to date, including pins from an older
+version. A file or entry at a ctxcap path that init did not write is left
+alone and reported; --force overwrites it.
+
 The diff goes to stdout and the per-file status to stderr.
-Exit: 0 done, 3 when a target was skipped without --force, 2 bad usage.`;
+Exit: 0 done, 3 when a target was left alone and needs --force, 2 bad usage.`;
 
 // ---------------------------------------------------------------- text helpers
 
@@ -69,6 +74,47 @@ function stripBlock(text) {
   return text.slice(0, start) + text.slice(end);
 }
 
+// ---------------------------------------------------------------- .gitignore
+
+// A `.ctxcap/` line in the root .gitignore hides the whole directory, and a
+// .gitignore inside an ignored directory is never read. init narrows that line
+// to the two things that are not source, and keeps the original inside the
+// block so that remove can put it back byte for byte.
+const IGNORE_BEGIN = '# ctxcap:begin';
+const IGNORE_END = '# ctxcap:end';
+const IGNORE_WAS = '# ctxcap:was ';
+const SHADOW = /^\s*\/?\.ctxcap(?:\/|\/\*{1,2})?\s*$/;
+const linesOf = (text) => text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+const bare = (line) => line.replace(/\r?\n$/, '');
+const eolAt = (line) => /\r?\n$/.exec(line)?.[0] ?? '';
+
+function restoreIgnore(text) {
+  const lines = linesOf(text);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (bare(lines[i]) === IGNORE_BEGIN) {
+      const end = lines.findIndex((line, j) => j > i && bare(line) === IGNORE_END);
+      const was = end > i ? lines.slice(i + 1, end).find((line) => line.startsWith(IGNORE_WAS)) : undefined;
+      if (was !== undefined) {
+        out.push(bare(was).slice(IGNORE_WAS.length) + eolAt(lines[end]));
+        i = end;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+  }
+  return out.join('');
+}
+
+function narrowIgnore(text, target) {
+  const fallback = eolOf(text);
+  return linesOf(restoreIgnore(text)).map((line) => {
+    if (!SHADOW.test(bare(line))) return line;
+    const eol = eolAt(line) || fallback;
+    return [IGNORE_BEGIN, IGNORE_WAS + bare(line), ...target.lines].map((entry) => entry + eol).join('') + IGNORE_END + eolAt(line);
+  }).join('');
+}
+
 // ---------------------------------------------------------------- json helpers
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -97,15 +143,25 @@ const NEW_JSON = { indent: 2, eol: '\n', final: true };
  *        managed - ours, and marked as ours
  *        custom  - something sits where ours would go, without our marker
  *        invalid - a JSON file that does not parse
+ *        none    - the target does not apply to this repository
+ * survey() adds two more: `state` for working files, and `user` for a target
+ * the user has already covered some other way.
  */
-function inspect(target, text) {
+function inspect(target, text, sentinel) {
   if (target.kind === 'file') {
     if (text === null) return { state: 'absent', pins: [] };
-    return text.includes(target.marker) ? { state: 'managed', pins: pinsIn(text) } : { state: 'custom', pins: [] };
+    // A file that cannot carry a marker is owned through the sentinel beside it.
+    const owned = target.sentinel ? sentinel !== null : text.includes(target.marker);
+    return owned ? { state: 'managed', pins: pinsIn(text) } : { state: 'custom', pins: [] };
   }
   if (target.kind === 'block') {
     const span = text === null ? null : blockSpan(text);
     return span ? { state: 'managed', pins: pinsIn(text.slice(span.start, span.end)) } : { state: 'absent', pins: [] };
+  }
+  if (target.kind === 'ignore') {
+    if (text === null) return { state: 'none', pins: [] };
+    if (restoreIgnore(text) !== text) return { state: 'managed', pins: [] };
+    return { state: linesOf(text).some((line) => SHADOW.test(bare(line))) ? 'absent' : 'none', pins: [] };
   }
   if (text === null) return { state: 'absent', pins: [] };
   const parsed = parseJson(text);
@@ -119,14 +175,16 @@ function inspect(target, text) {
   return { state: present ? 'custom' : 'absent', pins: [] };
 }
 
-function wired(target, text, context) {
+function wired(target, text, context, { adopt = false } = {}) {
   if (target.kind === 'file') return target.content;
   if (target.kind === 'block') return text !== null && blockSpan(text) ? replaceBlock(text, target) : addBlock(text, target);
+  if (target.kind === 'ignore') return narrowIgnore(text, target);
   const parsed = text === null ? { doc: {}, ...NEW_JSON } : parseJson(text);
   const { doc } = parsed;
   // Rewriting takes ours out first, so the entry and the marker always end up
-  // last and in the same order as on a first write.
-  if (isObject(doc._ctxcap)) target.strip(doc);
+  // last and in the same order as on a first write. With --force the same
+  // goes for an entry of ours that somebody wrote by hand.
+  if (isObject(doc._ctxcap) || adopt) target.strip(doc);
   delete doc._ctxcap;
   target.add(doc);
   doc._ctxcap = { version: context.version, ...(context.pin ? {} : { pin: false }) };
@@ -136,6 +194,7 @@ function wired(target, text, context) {
 function unwired(target, text) {
   if (target.kind === 'file') return null;
   if (target.kind === 'block') return stripBlock(text) || null;
+  if (target.kind === 'ignore') return restoreIgnore(text);
   const parsed = parseJson(text);
   target.strip(parsed.doc);
   delete parsed.doc._ctxcap;
@@ -153,19 +212,29 @@ async function read(root, file) {
   }
 }
 
-async function survey({ root, version = VERSION, pin = true, groups = GROUPS, force = false, targets }) {
+async function survey({ root, version = VERSION, pin = true, groups = DEFAULT_GROUPS, force = false, targets }) {
   const context = { root, version, pin, groups, force };
   const list = targets ?? await targetsFor(context);
   const items = [];
   for (const target of list) {
     const before = await read(root, target.path);
-    items.push({ target, before, ...(target.kind === 'state' ? { state: 'state', pins: [] } : inspect(target, before)) });
+    if (target.kind === 'state') { items.push({ target, before, state: 'state', pins: [] }); continue; }
+    const sentinel = target.sentinel ? await read(root, target.sentinel.path) : null;
+    let info = inspect(target, before, sentinel);
+    // Ours wins; otherwise the user may already have this covered elsewhere.
+    if (target.userWired && info.state !== 'managed') {
+      const via = await target.userWired(root);
+      if (via) info = { state: 'user', pins: [], via };
+    }
+    items.push({ target, before, sentinel, ...info });
   }
   return { context, items };
 }
 
+const real = (item) => item.state !== 'state' && item.state !== 'none';
+
 const groupState = (items, group, { exclusive = false } = {}) => {
-  const own = items.filter((item) => item.state !== 'state' && item.target.groups.includes(group) && (!exclusive || item.target.groups.length === 1));
+  const own = items.filter((item) => real(item) && item.target.groups.includes(group) && (!exclusive || item.target.groups.length === 1));
   if (own.every((item) => item.state === 'absent')) return 'not wired';
   if (own.some((item) => item.state === 'absent' || item.state === 'invalid')) return 'partially wired';
   return 'wired';
@@ -174,15 +243,19 @@ const groupState = (items, group, { exclusive = false } = {}) => {
 /**
  * Works out what init or remove would do, without touching the disk.
  * Each step is { path, before, after, action, reason } where action is
- * write | delete | skip | unchanged | leave.
+ * write | delete | skip | user | leave. A skip with `blocked` set is a target
+ * that was left alone and still needs attention; the others are already fine.
  */
-export async function planInit({ root, groups = GROUPS, remove = false, force = false, version, pin, targets }) {
+export async function planInit({ root, groups, remove = false, force = false, version, pin, targets }) {
+  // Remove covers every agent unless told otherwise, so nothing is left behind.
+  groups ??= remove ? GROUPS : DEFAULT_GROUPS;
   const { context, items } = await survey({ root, version, pin, groups, force, targets });
   const steps = [];
   for (const item of items) {
     const { target, before, state } = item;
-    if (!target.groups.some((group) => groups.includes(group))) continue;
-    const step = { path: target.path, before, after: before, action: 'unchanged', reason: '' };
+    if (!target.groups.some((group) => groups.includes(group)) || state === 'none') continue;
+    const step = { path: target.path, before, after: before, action: 'skip', reason: 'already configured' };
+    const sentinel = target.sentinel && { path: target.sentinel.path, before: item.sentinel, reason: '' };
 
     // Working state (the hook stamp) is never written by init, only cleared by remove.
     if (state === 'state' && !(remove && before !== null)) continue;
@@ -190,23 +263,34 @@ export async function planInit({ root, groups = GROUPS, remove = false, force = 
     if (remove) {
       // A file shared by two agents stays while the other one still needs it.
       const needed = target.groups.some((group) => !groups.includes(group) && groupState(items, group, { exclusive: true }) !== 'not wired');
-      if (state === 'absent' || needed) continue;
-      if (state === 'state') Object.assign(step, { after: null, action: 'delete' });
+      if (needed) continue;
+      // A sentinel without its file still goes.
+      if (state === 'absent') {
+        if (sentinel && sentinel.before !== null) steps.push({ ...sentinel, after: null, action: 'delete' });
+        continue;
+      }
+      if (state === 'state') Object.assign(step, { after: null, action: 'delete', reason: '' });
+      else if (state === 'user') Object.assign(step, { path: item.via, action: 'leave', reason: 'not written by ctxcap init' });
       else if (state !== 'managed') Object.assign(step, { action: 'leave', reason: 'not written by ctxcap init' });
       else {
         step.after = unwired(target, before);
-        step.action = step.after === null ? 'delete' : 'write';
+        Object.assign(step, { action: step.after === null ? 'delete' : 'write', reason: '' });
       }
-    } else if (state === 'invalid') Object.assign(step, { action: 'skip', reason: 'not valid JSON, left alone' });
-    else if (state === 'custom' && (target.kind !== 'file' || !force)) Object.assign(step, { action: 'skip', reason: 'already configured' });
-    else if (state === 'managed' && !force && !target.refresh) Object.assign(step, { action: 'skip', reason: 'already configured' });
+      steps.push(step);
+      if (state === 'managed' && sentinel) steps.push({ ...sentinel, after: null, action: 'delete' });
+      continue;
+    }
+
+    if (state === 'invalid') Object.assign(step, { blocked: true, reason: 'not valid JSON, left alone' });
+    else if (state === 'user' && !(force && item.via === target.path)) Object.assign(step, { path: item.via, action: 'user', reason: target.userReason ?? 'already set up by hand' });
+    else if ((state === 'custom' || state === 'user') && !force) Object.assign(step, { blocked: true, reason: 'not written by ctxcap init; --force overwrites it' });
     else {
       if (typeof target.content === 'function') target.content = await target.content();
-      step.after = wired(target, before, context);
-      // A refreshed target holds data, not configuration (the badge count): it
-      // is brought up to date on every run and only skipped when it is current.
-      if (step.after !== before) step.action = 'write';
-      else if (state === 'managed' && !force) Object.assign(step, { action: 'skip', reason: 'already configured' });
+      step.after = wired(target, before, context, { adopt: state === 'custom' });
+      if (step.after !== before) Object.assign(step, { action: 'write', reason: '' });
+      steps.push(step);
+      if (sentinel && sentinel.before !== target.sentinel.content) steps.push({ ...sentinel, after: target.sentinel.content, action: 'write' });
+      continue;
     }
     steps.push(step);
   }
@@ -241,22 +325,21 @@ export const renderDiff = (steps) => steps
  * `ok` is false when any agent is partially wired or carries a stale pin.
  */
 export async function doctor({ root, version = VERSION, targets }) {
-  const { items } = await survey({ root, version, targets });
+  const { items } = await survey({ root, version, groups: GROUPS, targets });
   const agents = GROUPS.map((agent) => {
-    const files = items
-      .filter((item) => item.state !== 'state' && item.target.groups.includes(agent))
-      .map((item) => {
-        const stale = item.pins.find((pin) => pin !== version);
-        const state = item.state === 'absent' ? 'missing'
-          : item.state === 'managed' ? (stale ? 'stale' : 'wired')
-          : item.state;
-        return { path: item.target.path, state, ...(stale ? { pin: stale } : {}) };
-      });
-    const present = files.filter((file) => file.state !== 'missing' && file.state !== 'invalid');
+    const mine = items.filter((item) => real(item) && item.target.groups.includes(agent));
+    const files = mine.map((item) => {
+      const stale = item.pins.find((pin) => pin !== version);
+      const state = item.state === 'absent' ? (item.target.kind === 'ignore' ? 'shadowed' : 'missing')
+        : item.state === 'managed' ? (stale ? 'stale' : 'wired')
+        : item.state;
+      return { path: item.via ?? item.target.path, state, ...(stale ? { pin: stale } : {}) };
+    });
+    const broken = files.filter((file) => ['missing', 'invalid', 'shadowed'].includes(file.state));
     // A file shared with another agent does not make this one wired by itself.
-    const own = items.filter((item) => item.state !== 'state' && item.target.groups.length === 1 && item.target.groups[0] === agent);
+    const own = mine.filter((item) => item.target.groups.length === 1);
     const status = own.every((item) => item.state === 'absent') ? 'not wired'
-      : present.length < files.length ? 'partially wired'
+      : broken.length > 0 ? 'partially wired'
       : files.some((file) => file.state === 'stale') ? 'stale pin'
       : 'wired';
     return { agent, status, files };
@@ -270,13 +353,15 @@ function describe(entry, version) {
     const parts = [];
     if (paths('missing').length) parts.push(`missing ${paths('missing').join(', ')}`);
     if (paths('invalid').length) parts.push(`not valid JSON: ${paths('invalid').join(', ')}`);
+    if (paths('shadowed').length) parts.push('.gitignore still ignores .ctxcap/');
     return parts.join('; ');
   }
   if (entry.status === 'stale pin') {
     return entry.files.filter((file) => file.state === 'stale').map((file) => `${file.path} has ${file.pin}`).join(', ') + `, current is ${version}`;
   }
-  const custom = paths('custom');
-  return custom.length ? `${custom.join(', ')} not written by ctxcap init` : '';
+  if (entry.status !== 'wired') return '';
+  const custom = [...paths('custom'), ...paths('user')];
+  return custom.length ? `by ${custom.join(', ')}, not written by ctxcap init` : '';
 }
 
 const DOCTOR_HELP = `ctxcap doctor — check the wiring ctxcap init wrote
@@ -302,7 +387,7 @@ export async function doctorCli(argv, { version = VERSION } = {}) {
       const detail = describe(entry, version);
       console.log(`${entry.agent.padEnd(9)}${entry.status}${detail ? `: ${detail}` : ''}`);
     }
-    if (!result.ok) console.log(`\nfix: npx ctxcap@${version} init --yes --force`);
+    if (!result.ok) console.log(`\nfix: npx ctxcap@${version} init --yes`);
     else if (result.agents.every((entry) => entry.status === 'not wired')) console.log(`\nwire it up: npx ctxcap@${version} init`);
   }
   return result.ok ? 0 : 1;
@@ -315,7 +400,7 @@ function usage(message) {
 }
 
 function parseArgs(argv) {
-  const o = { yes: false, print: false, remove: false, force: false, pin: true, groups: GROUPS, root: '.', help: false };
+  const o = { yes: false, print: false, remove: false, force: false, pin: true, groups: undefined, root: '.', help: false };
   const need = (i, flag) => {
     if (i + 1 >= argv.length) throw usage(`${flag} needs a value`);
     return argv[i + 1];
@@ -352,7 +437,7 @@ export async function initCli(argv, { version = VERSION } = {}) {
   if (diff) process.stdout.write(diff);
   if (write) await applySteps(root, steps);
 
-  const verb = { write: write ? 'wrote' : 'would write', delete: write ? 'deleted' : 'would delete', skip: 'skipped', unchanged: 'unchanged', leave: 'left' };
+  const verb = { write: write ? 'wrote' : 'would write', delete: write ? 'deleted' : 'would delete', skip: 'skipped', user: 'wired by user', leave: 'left' };
   for (const step of steps) {
     console.error(`${verb[step.action]}: ${step.path}${step.reason ? ` (${step.reason})` : ''}`);
   }
@@ -369,5 +454,5 @@ export async function initCli(argv, { version = VERSION } = {}) {
   else if (!write && pending && !opts.print) console.error('nothing written; re-run with --yes to apply');
 
   if (opts.print) return 0;
-  return !opts.force && steps.some((step) => step.action === 'skip') ? 3 : 0;
+  return steps.some((step) => step.blocked) ? 3 : 0;
 }

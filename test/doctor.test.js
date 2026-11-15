@@ -22,7 +22,7 @@ test('doctor: nothing wired is fine, and a fresh init is wired everywhere', asyn
   assert.deepEqual(statuses(JSON.parse(wired.stdout)), ALL('wired'));
 });
 
-test('doctor: a pin written by another version is stale, and --force brings it current', async () => {
+test('doctor: a pin written by another version is stale, and init --yes brings it current', async () => {
   const dir = await repo({ 'AGENTS.md': '# Notes\n' });
   // What a repository looks like after ctxcap itself moved on a version.
   await applySteps(dir, await planInit({ root: dir, version: '1.2.0' }));
@@ -40,10 +40,10 @@ test('doctor: a pin written by another version is stale, and --force brings it c
   const report = cli(dir, 'doctor');
   assert.equal(report.status, 1);
   assert.match(report.stdout, /^codex {4}stale pin: AGENTS\.md has 1\.2\.0, current is /m);
-  assert.ok(report.stdout.includes(`fix: npx ctxcap@${VERSION} init --yes --force`));
+  assert.ok(report.stdout.includes(`fix: npx ctxcap@${VERSION} init --yes\n`));
   assert.equal((await doctor({ root: dir, version: '1.2.0' })).ok, true);
 
-  assert.equal(cli(dir, 'init', '--yes', '--force').status, 0);
+  assert.equal(cli(dir, 'init', '--yes').status, 0);
   assert.equal(cli(dir, 'doctor').status, 0);
 });
 
@@ -70,7 +70,7 @@ test('doctor: unpinned and hand-written wiring both count as wired', async () =>
   const custom = await repo({ '.github/workflows/ctxcap.yml': 'name: ctxcap\non: pull_request\njobs: {}\n' });
   const report = cli(custom, 'doctor');
   assert.equal(report.status, 0);
-  assert.match(report.stdout, /^ci {7}wired: \.github\/workflows\/ctxcap\.yml not written by ctxcap init$/m);
+  assert.match(report.stdout, /^ci {7}wired: by \.github\/workflows\/ctxcap\.yml, not written by ctxcap init$/m);
 });
 
 test('doctor: this repository is wired by its own init, at the current version', async () => {

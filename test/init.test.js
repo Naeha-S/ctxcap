@@ -76,14 +76,18 @@ test('the printed diff is exactly what gets written', async () => {
   assert.deepEqual(patched, await tree(dir));
 });
 
-test('--force rewrites in place and changes nothing when already current', async () => {
+test('--yes brings what init wrote up to date without --force, and is a no-op when current', async () => {
   const dir = await repo({ 'NOTES.md': NOTES + '\nTrailing section.\n', 'conf.json': CONF });
   await applySteps(dir, await run(dir));
-  const same = await run(dir, { force: true });
-  assert.deepEqual(same.map((step) => step.action), ['unchanged', 'unchanged', 'unchanged']);
+  for (const force of [false, true]) {
+    const same = await run(dir, { force });
+    assert.deepEqual(same.map((step) => [step.action, step.reason, step.blocked]), Array(3).fill(['skip', 'already configured', undefined]));
+  }
 
   await writeFile(path.join(dir, 'NOTES.md'), (await readFile(path.join(dir, 'NOTES.md'), 'utf8')) + '\nAdded by the user afterwards.\n');
-  await applySteps(dir, await run(dir, { force: true, version: '2.0.0' }));
+  const upgrade = await run(dir, { version: '2.0.0' });
+  assert.deepEqual(upgrade.map((step) => step.action), ['write', 'write', 'write']);
+  await applySteps(dir, upgrade);
   const files = await tree(dir);
   assert.ok(files['tool/owned.md'].includes('ctxcap@2.0.0'));
   assert.ok(files['NOTES.md'].includes('ctxcap@2.0.0') && !files['NOTES.md'].includes('ctxcap@1.0.0'));
@@ -113,23 +117,36 @@ test('remove restores every byte, whatever the line endings and indentation', as
   }
 });
 
-test('files and keys without a ctxcap marker are never touched', async () => {
-  const custom = { 'tool/owned.md': 'written by hand\n', 'conf.json': JSON.stringify({ servers: { ctxcap: { command: 'mine' } } }, null, 2) + '\n' };
+test('targets without a ctxcap marker are left alone unless --force is given', async () => {
+  const custom = { 'tool/owned.md': 'written by hand\n', 'conf.json': JSON.stringify({ servers: { ctxcap: { command: 'mine' }, other: { command: 'x' } } }, null, 2) + '\n' };
   const dir = await repo({ ...custom, 'bad.json': '{ nope' });
   const steps = await run(dir);
-  assert.deepEqual(steps.map((step) => step.action), ['skip', 'write', 'skip']);
+  assert.deepEqual(steps.map((step) => [step.action, Boolean(step.blocked)]), [['skip', true], ['write', false], ['skip', true]]);
+  assert.ok(steps.filter((step) => step.blocked).every((step) => step.reason === 'not written by ctxcap init; --force overwrites it'));
   await applySteps(dir, steps);
   await applySteps(dir, await run(dir, { remove: true }));
   const files = await tree(dir);
   assert.equal(files['tool/owned.md'], custom['tool/owned.md']);
   assert.equal(files['conf.json'], custom['conf.json']);
 
-  // --force may replace a whole file ctxcap owns by name, never a hand-written JSON key.
+  // --force overwrites them: the whole file, and in JSON only the entry that is ours by name.
   const forced = await run(dir, { force: true });
-  assert.deepEqual(forced.map((step) => step.action), ['write', 'write', 'skip']);
+  assert.deepEqual(forced.map((step) => step.action), ['write', 'write', 'write']);
+  await applySteps(dir, forced);
+  const after = await tree(dir);
+  assert.ok(after['tool/owned.md'].includes(MANAGED_MD));
+  const conf = JSON.parse(after['conf.json']);
+  assert.deepEqual(conf.servers, { other: { command: 'x' }, ctxcap: { command: 'npx', args: ['ctxcap@1.0.0'] } });
+  assert.deepEqual(conf._ctxcap, { version: '1.0.0' });
+  // Once overwritten they are ours, and remove takes them out again.
+  await applySteps(dir, await run(dir, { remove: true }));
+  assert.deepEqual(JSON.parse((await tree(dir))['conf.json']), { servers: { other: { command: 'x' } } });
 
-  const broken = await planInit({ root: dir, targets: [{ groups: ['cursor'], path: 'bad.json', kind: 'json', present: () => false, add: () => {}, strip: () => {} }] });
-  assert.deepEqual(broken.map((step) => [step.action, step.reason]), [['skip', 'not valid JSON, left alone']]);
+  // A file that does not parse is never rewritten, with or without --force.
+  for (const force of [false, true]) {
+    const broken = await planInit({ root: dir, force, targets: [{ groups: ['cursor'], path: 'bad.json', kind: 'json', present: () => false, add: () => {}, strip: () => {} }] });
+    assert.deepEqual(broken.map((step) => [step.action, step.reason, step.blocked]), [['skip', 'not valid JSON, left alone', true]]);
+  }
 });
 
 test('init --print and a plain init write nothing; bad usage exits 2', async () => {

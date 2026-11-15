@@ -250,13 +250,13 @@ test('init: --print writes nothing, --yes writes every target, a second --yes is
   assert.deepEqual(Object.keys(wired).sort(), WIRED);
   assert.deepEqual(first.stderr.trim().split('\n').sort(), WIRED.map((file) => `wrote: ${file}`).sort());
 
+  // Nothing is left to do, which is success: the exit code says so.
   const second = cli(dir, 'init', '--yes');
-  assert.equal(second.status, 3);
+  assert.equal(second.status, 0);
   assert.equal(second.stdout, '');
   assert.deepEqual(second.stderr.trim().split('\n').sort(), WIRED.map((file) => `skipped: ${file} (already configured)`).sort());
   assert.deepEqual(await tree(dir), wired);
 
-  // --force is not a skip: nothing is out of date, so nothing changes and it exits 0.
   const forced = cli(dir, 'init', '--yes', '--force');
   assert.equal(forced.status, 0);
   assert.deepEqual(await tree(dir), wired);

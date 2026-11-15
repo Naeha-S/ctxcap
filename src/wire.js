@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 export const GROUPS = ['claude', 'cursor', 'codex', 'copilot', 'ci', 'badge'];
+export const DEFAULT_GROUPS = GROUPS;
 
 export const BEGIN = '<!-- ctxcap:begin -->';
 export const END = '<!-- ctxcap:end -->';
@@ -280,7 +281,7 @@ async function badge(context, others) {
   const readme = await existing(context.root, README_NAMES);
   return [
     // Measured only when init is about to write it: doctor and remove never need the number.
-    { groups: ['badge'], path: BADGE_FILE, kind: 'file', marker: '"schemaVersion"', refresh: true, content: async () => badgeText(await totalAfter(context, others)) },
+    { groups: ['badge'], path: BADGE_FILE, kind: 'file', marker: '"schemaVersion"', content: async () => badgeText(await totalAfter(context, others)) },
     ...(readme ? [{ groups: ['badge'], path: readme, kind: 'block', place: 'after-h1', lines: [badgeMarkdown(repo)] }] : []),
     stateIgnore(['claude', 'badge'])
   ];
