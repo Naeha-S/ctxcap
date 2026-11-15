@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -94,4 +94,18 @@ test('a plan made in one server session can be verified in the next', async () =
   assert.deepEqual(verified.violations, []);
   const missing = await call('context_budget_verify', { planId: 'ffffff' });
   assert.equal(missing.error.code, 'PLAN_EXPIRED');
+});
+
+test('release files agree: server.json follows the MCP package, which accepts this CLI', async () => {
+  const read = async (file) => JSON.parse(await readFile(path.resolve(file), 'utf8'));
+  const mcpPackage = await read('packages/ctxcap-mcp/package.json');
+  const server = await read('server.json');
+
+  assert.equal(server.version, mcpPackage.version);
+  assert.deepEqual(server.packages.map((entry) => [entry.identifier, entry.version]), [['ctxcap-mcp', mcpPackage.version]]);
+  assert.equal(server.name, mcpPackage.mcpName);
+
+  // The wrapper only imports ctxcap/mcp/server.js, so its range decides which
+  // server a fresh install gets. It must start at this release, not before it.
+  assert.equal(mcpPackage.dependencies.ctxcap, `^${packageJson.version}`);
 });
