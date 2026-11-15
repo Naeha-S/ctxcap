@@ -1,0 +1,17 @@
+{
+  "name": "ctxcap",
+  "owner": {
+    "name": "Naeha S",
+    "url": "https://github.com/Naeha-S"
+  },
+  "metadata": {
+    "description": "ctxcap: token budgets and stale-reference checks for agent context files."
+  },
+  "plugins": [
+    {
+      "name": "ctxcap",
+      "source": "./",
+      "description": "Measure what CLAUDE.md, AGENTS.md and prompt files cost in tokens, find references in them that no longer exist, and trim them to a budget."
+    }
+  ]
+}

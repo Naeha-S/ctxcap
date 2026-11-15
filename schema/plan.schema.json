@@ -7,6 +7,8 @@
   "properties": {
     "schema": { "const": "ctxcap/plan/v2" },
     "planId": { "type": "string", "pattern": "^[0-9a-f]{6}$" },
+    "verifyCommand": { "type": "string", "description": "CLI only. The command that verifies this plan, pinned to the version that made it.", "pattern": "^npx ctxcap@[0-9]+\\.[0-9]+\\.[0-9]+ --verify [0-9a-f]{6}( --root .+)?$" },
+    "initHint": { "type": "string", "description": "CLI only. Present while no agent in the repository is wired by ctxcap init." },
     "satisfiable": { "type": "boolean" },
     "budget": { "type": "integer", "minimum": 0 },
     "current": { "type": "integer", "minimum": 0 },

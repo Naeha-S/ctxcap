@@ -1,0 +1,10 @@
+{
+  "name": "ctxcap",
+  "description": "Measure what CLAUDE.md, AGENTS.md and prompt files cost in tokens, find references in them that no longer exist, and trim them to a budget. Offline, no API key.",
+  "version": "1.5.0",
+  "author": { "name": "Naeha S", "url": "https://github.com/Naeha-S" },
+  "homepage": "https://github.com/Naeha-S/ctxcap",
+  "repository": "https://github.com/Naeha-S/ctxcap",
+  "license": "MIT",
+  "keywords": ["context", "tokens", "agents-md", "claude-md", "linter"]
+}

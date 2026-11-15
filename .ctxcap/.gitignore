@@ -1,0 +1,5 @@
+# ctxcap:managed
+*
+!.gitignore
+!badge.json
+!badge.owned

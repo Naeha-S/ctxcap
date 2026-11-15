@@ -61,6 +61,7 @@ Add the same stdio server to Cursor's MCP settings:
 - `context_budget_verify`: Verify that a plan landed without drift or preserve-span violations.
 - `trim_to_budget`: Deprecated alias for `context_budget_plan`; always returns `apply: false`.
 
-The server operates on the MCP client's current working directory. Plans are
-held in the server process, so call `context_budget_verify` in the same server
-session after applying edits.
+The server operates on the MCP client's current working directory and never
+edits files: the agent applies the plan, then calls `context_budget_verify`.
+Plans are saved under `.ctxcap/plans/` for 24 hours, so verify also works in a
+later session. Use version 0.1.7 or newer; earlier versions do not connect.
