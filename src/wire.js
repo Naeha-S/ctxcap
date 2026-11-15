@@ -67,11 +67,16 @@ const mcpServer = ({ version, pin }) => ({
 });
 
 // .ctxcap/ holds the hook stamp and saved plans, which are not source, and the
-// badge, which is. The Claude hooks and the badge both need this file.
+// badge, which is. The Claude hooks and the badge both need these two targets:
+// a .gitignore inside the directory, and, where the root .gitignore hides the
+// whole directory (which would make the inner one inert), a narrower rule.
+export const STAMP = '.ctxcap/post-edit.stamp';
 export const BADGE_OWNED = '.ctxcap/badge.owned';
-const stateIgnore = (groups) => ({
-  groups, path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n!badge.owned\n`
-});
+const STATE_GROUPS = ['claude', 'badge'];
+const stateIgnore = () => [
+  { groups: STATE_GROUPS, path: '.gitignore', kind: 'ignore', lines: ['.ctxcap/plans/', '.ctxcap/*.stamp'] },
+  { groups: STATE_GROUPS, path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n!badge.owned\n` }
+];
 
 // ---------------------------------------------------------------- Claude Code
 
@@ -129,8 +134,8 @@ function claude(context) {
       }
     }),
     // The hook keeps a stamp here and plans are saved here; none of it is source.
-    stateIgnore(['claude', 'badge']),
-    { groups: ['claude'], path: '.ctxcap/stamp', kind: 'state' }
+    ...stateIgnore(),
+    { groups: ['claude'], path: STAMP, kind: 'state' }
   ];
 }
 
@@ -327,16 +332,19 @@ async function badge(context, others) {
       content: async () => badgeText(await totalAfter(context, others))
     },
     ...(readme ? [{ groups: ['badge'], path: readme, kind: 'block', place: 'after-h1', lines: [badgeMarkdown(repo)] }] : []),
-    stateIgnore(['claude', 'badge'])
+    ...stateIgnore()
   ];
 }
 
 /**
- * A target is one of four kinds:
+ * A target is one of five kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
  *   block - a fenced block in a Markdown file: { path, kind, lines, place }
  *   json  - keys merged into a JSON file: { path, kind, present, add, strip }
+ *   ignore - a `.ctxcap/` rule in the root .gitignore, narrowed: { path, kind, lines }
  *   state - working state init never writes and remove clears: { path, kind }
+ * A file target may name a `sentinel` (its ownership mark, kept beside it) and
+ * a `userWired` check (the user already covers it some other way).
  * `groups` lists the agents the target belongs to.
  */
 export async function targetsFor(context) {

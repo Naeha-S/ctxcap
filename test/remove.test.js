@@ -28,7 +28,7 @@ test('remove: init then remove leaves the tree hash unchanged and git status cle
   assert.notEqual(await treeHash(dir), before);
   // The Claude hook leaves a stamp behind; remove has to clear that as well.
   spawnSync('node', [CLI, 'hook', 'post-edit'], { cwd: dir, input: '', env: { ...process.env, CLAUDE_PROJECT_DIR: dir } });
-  assert.ok('.ctxcap/stamp' in await tree(dir));
+  assert.ok('.ctxcap/post-edit.stamp' in await tree(dir));
 
   const preview = cli(dir, 'init', '--remove');
   assert.equal(preview.status, 0);

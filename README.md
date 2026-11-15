@@ -142,6 +142,11 @@ workflow beside it, and the exit code stays 0.
 - Files that `init` creates whole (the skill, the Cursor rule, the workflow,
   `.ctxcap/.gitignore`) carry a `ctxcap:managed` marker. A file at one of those
   paths without the marker is yours, and `init` leaves it alone.
+- A `.ctxcap/` line in your `.gitignore` would hide the badge, and git does not
+  read a `.gitignore` inside an ignored directory. `init` replaces that line
+  with `.ctxcap/plans/` and `.ctxcap/*.stamp` between `# ctxcap:begin` and
+  `# ctxcap:end`, and keeps the original line inside the block. `--remove` puts
+  it back exactly. A `.gitignore` without that line is not touched.
 - `.ctxcap/badge.json` cannot carry a marker, because shields.io rejects keys
   it does not know. `init` writes `.ctxcap/badge.owned` beside it instead.
   `--remove` deletes the badge only while that file is there, so a badge you
@@ -379,8 +384,7 @@ carries an `initHint` that points at `ctxcap init`.
 
 Plans are saved to `.ctxcap/plans/<planId>.json` and expire after 24 hours;
 after that `--verify` returns `PLAN_EXPIRED`. Keep them out of git:
-`ctxcap init` writes a `.ctxcap/.gitignore` that does, or add `.ctxcap/plans/`
-to your own `.gitignore`. Run `--apply` on a clean tree, and do not run it in
+`ctxcap init` sets that up, or add `.ctxcap/plans/` to your own `.gitignore`. Run `--apply` on a clean tree, and do not run it in
 CI.
 
 [`examples/case-study/`](examples/case-study/) holds a run you can reproduce:

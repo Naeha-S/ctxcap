@@ -99,7 +99,7 @@ test('hook post-edit: silent until a context file is newer than the stamp', asyn
   // First call only lays down the stamp: an edit elsewhere is not news.
   const first = hook(dir, 'post-edit', { tool_name: 'Edit', tool_input: { file_path: path.join(dir, 'src/app.js') } });
   assert.deepEqual([first.status, first.stdout], [0, '']);
-  const stamp = path.join(dir, '.ctxcap/stamp');
+  const stamp = path.join(dir, '.ctxcap/post-edit.stamp');
   assert.ok((await stat(stamp)).isFile());
   assert.deepEqual([hook(dir, 'post-edit').status, hook(dir, 'post-edit').stdout], [0, '']);
 
@@ -294,7 +294,8 @@ test('init: warns when git would ignore a file it writes', async () => {
   const result = cli(dir, 'init', '--yes', '--agents', 'claude,codex');
   assert.equal(result.status, 0);
   const warned = result.stderr.split('\n').filter((line) => line.startsWith('warning: git ignores ')).map((line) => line.split(' ')[3].replace(/,$/, ''));
-  assert.deepEqual(warned.sort(), ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore']);
+  // .ctxcap/ is not in the list: init narrows that rule itself.
+  assert.deepEqual(warned.sort(), ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md']);
   assert.doesNotMatch(cli(await repo(), 'init', '--yes').stderr, /warning:/);
 });
 

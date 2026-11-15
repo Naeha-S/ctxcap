@@ -57,7 +57,7 @@ test('badge: init puts the badge under the README title, pointing at the raw fil
     assert.equal(files['README.md'].replace(/<!-- ctxcap:begin -->[\s\S]*<!-- ctxcap:end -->\n\n/, ''), readme);
 
     // The file git must track, and nothing else in that directory.
-    await writeFile(path.join(dir, '.ctxcap/stamp'), '');
+    await writeFile(path.join(dir, '.ctxcap/post-edit.stamp'), '');
     git(dir, 'add', '-A');
     assert.deepEqual(git(dir, 'ls-files', '.ctxcap').stdout.trim().split('\n').sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json', '.ctxcap/badge.owned']);
 

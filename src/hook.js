@@ -9,7 +9,7 @@ import { loadConfig } from './config.js';
 import { collectFiles } from './glob.js';
 import { VERSION } from './version.js';
 
-export const STAMP = '.ctxcap/stamp';
+import { STAMP } from './wire.js';
 
 async function stdinJson() {
   if (process.stdin.isTTY) return {};
