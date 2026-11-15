@@ -136,7 +136,21 @@ export async function main(argv) {
     const budget = opts.budget ?? config.budgets.total;
     const plan = await makePlan({ files, root, config, budget, budgetClasses: opts.budgetClasses, apply: opts.apply, strictPreserve: opts.strictPreserve, maxCondenseChars: opts.maxCondenseChars, minTokens: opts.minTokens });
     await savePlan(root, plan);
-    console.log(JSON.stringify(plan, null, 2));
+    // The agent that reads the plan gets the exact command that checks it, and
+    // a pointer to init while nothing in this repository is wired yet.
+    const verifyCommand = `npx ctxcap@${VERSION} --verify ${plan.planId}${opts.root === '.' ? '' : ` --root ${opts.root}`}`;
+    const { doctor } = await import('./init.js');
+    const unwired = (await doctor({ root })).agents.every((entry) => entry.status === 'not wired');
+    const initHint = unwired ? `npx ctxcap@${VERSION} init wires ctxcap into the coding agents this repository uses; it prints a diff and writes nothing without --yes` : null;
+    const output = {};
+    for (const [key, value] of Object.entries(plan)) {
+      output[key] = value;
+      if (key === 'planId') output.verifyCommand = verifyCommand;
+    }
+    if (initHint) output.initHint = initHint;
+    console.log(JSON.stringify(output, null, 2));
+    console.error(`verify with:\n${verifyCommand}`);
+    if (initHint) console.error(initHint);
     return plan.satisfiable && (!opts.apply || plan.missed?.length === 0) ? 0 : 1;
   }
   const findings = opts.stale
