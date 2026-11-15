@@ -14,8 +14,11 @@ try {
   encode = null;
 }
 
-export function countTokens(text) {
-  if (!text) return 0;
+// CRLF is counted as LF. Git checks the same commit out with either, and the
+// count has to be the same on a Windows checkout as it is in CI.
+export function countTokens(raw) {
+  if (!raw) return 0;
+  const text = raw.includes('\r\n') ? raw.replace(/\r\n/g, '\n') : raw;
   if (encode) {
     try {
       return encode(text).length;

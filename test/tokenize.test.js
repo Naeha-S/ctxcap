@@ -21,3 +21,10 @@ test('counts are deterministic', () => {
   const s = 'The quick brown fox jumps over the lazy dog.';
   assert.equal(countTokens(s), countTokens(s));
 });
+
+test('CRLF counts the same as LF, so a Windows checkout agrees with CI', () => {
+  const lf = '# Rules\n\n- Use pnpm.\n- Never commit secrets.\n\nRun the tests before every commit.\n';
+  assert.equal(countTokens(lf.replace(/\n/g, '\r\n')), countTokens(lf));
+  // A lone carriage return is content, not a line ending.
+  assert.ok(countTokens('a\rb') >= countTokens('ab'));
+});
