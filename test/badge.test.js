@@ -47,7 +47,7 @@ test('badge: init puts the badge under the README title, pointing at the raw fil
     const dir = await repo({ 'README.md': readme, 'AGENTS.md': WORDS.repeat(5) }, { remote });
     assert.equal(cli(dir, 'init', '--yes', '--agents', 'badge').status, 0);
     const files = await tree(dir);
-    assert.deepEqual(Object.keys(files).sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json', 'AGENTS.md', 'README.md']);
+    assert.deepEqual(Object.keys(files).sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json', '.ctxcap/badge.owned', 'AGENTS.md', 'README.md']);
 
     const lines = files['README.md'].split('\n');
     assert.deepEqual(lines.slice(0, 2), ['# Widgets', '']);
@@ -59,7 +59,7 @@ test('badge: init puts the badge under the README title, pointing at the raw fil
     // The file git must track, and nothing else in that directory.
     await writeFile(path.join(dir, '.ctxcap/stamp'), '');
     git(dir, 'add', '-A');
-    assert.deepEqual(git(dir, 'ls-files', '.ctxcap').stdout.trim().split('\n').sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json']);
+    assert.deepEqual(git(dir, 'ls-files', '.ctxcap').stdout.trim().split('\n').sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json', '.ctxcap/badge.owned']);
 
     cli(dir, 'init', '--remove', '--yes', '--agents', 'badge');
     assert.equal((await tree(dir))['README.md'], readme);
@@ -97,7 +97,7 @@ test('badge: without a GitHub remote or a README, init leaves the badge out', as
 
   const bare = await repo();
   cli(bare, 'init', '--yes', '--agents', 'badge');
-  assert.deepEqual(Object.keys(await tree(bare)).sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json']);
+  assert.deepEqual(Object.keys(await tree(bare)).sort(), ['.ctxcap/.gitignore', '.ctxcap/badge.json', '.ctxcap/badge.owned']);
 });
 
 test('badge: the Claude hook keeps a committed badge current', async () => {
@@ -109,4 +109,55 @@ test('badge: the Claude hook keeps a committed badge current', async () => {
   });
   assert.equal(hook.status, 0, hook.stderr);
   assert.deepEqual(JSON.parse((await tree(dir))[BADGE_FILE]), badgeFor(total(dir)));
+});
+
+test('badge: the sentinel beside badge.json is what lets remove delete it', async () => {
+  const readme = '# Widgets\n\nA small library.\n';
+  const dir = await repo({ 'README.md': readme, 'AGENTS.md': WORDS.repeat(5) });
+  const before = await tree(dir);
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'badge').status, 0);
+  const wired = await tree(dir);
+  assert.ok(BADGE_FILE in wired && '.ctxcap/badge.owned' in wired);
+  // The badge itself stays exactly what shields.io accepts: no ownership key in it.
+  assert.ok(valid(JSON.parse(wired[BADGE_FILE])));
+  assert.match(wired['.ctxcap/.gitignore'], /^!badge\.owned$/m);
+
+  // Rewriting the number, as the hook and --badge do, keeps the ownership.
+  await writeFile(path.join(dir, 'AGENTS.md'), WORDS.repeat(80));
+  assert.equal(cli(dir, '--badge').status, 0);
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'badge').status, 0);
+  await writeFile(path.join(dir, 'AGENTS.md'), before['AGENTS.md']);
+
+  const removed = cli(dir, 'init', '--remove', '--yes');
+  assert.equal(removed.status, 0);
+  for (const file of [BADGE_FILE, '.ctxcap/badge.owned', 'README.md']) assert.match(removed.stderr, new RegExp(`^(deleted|wrote): ${file.replace(/[.]/g, '\\.')}$`, 'm'));
+  assert.deepEqual(await tree(dir), before);
+});
+
+test('badge: a badge.json that init did not write is left alone until --force adopts it', async () => {
+  const dir = await repo({ 'README.md': '# Widgets\n', 'AGENTS.md': WORDS.repeat(5) });
+  // Written by hand with the CLI: no sentinel, so not init's to delete.
+  assert.equal(cli(dir, '--badge').status, 0);
+  const own = (await tree(dir))[BADGE_FILE];
+
+  const blocked = cli(dir, 'init', '--yes', '--agents', 'badge');
+  assert.equal(blocked.status, 3);
+  assert.match(blocked.stderr, /^skipped: \.ctxcap\/badge\.json \(not written by ctxcap init; --force overwrites it\)$/m);
+  assert.ok(!('.ctxcap/badge.owned' in await tree(dir)));
+  assert.match(cli(dir, 'doctor').stdout, /^badge {4}wired: by \.ctxcap\/badge\.json, not written by ctxcap init$/m);
+
+  const removed = cli(dir, 'init', '--remove', '--yes');
+  assert.match(removed.stderr, /^left: \.ctxcap\/badge\.json \(not written by ctxcap init\)$/m);
+  assert.equal((await tree(dir))[BADGE_FILE], own);
+  assert.ok(!(await tree(dir))['README.md'].includes('ctxcap:begin'));
+
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'badge', '--force').status, 0);
+  assert.ok('.ctxcap/badge.owned' in await tree(dir));
+  cli(dir, 'init', '--remove', '--yes');
+  assert.deepEqual(Object.keys(await tree(dir)).sort(), ['AGENTS.md', 'README.md']);
+
+  // A sentinel left behind without its file goes too.
+  const orphan = await repo({ '.ctxcap/badge.owned': 'x\n', 'README.md': '# W\n' });
+  assert.match(cli(orphan, 'init', '--remove', '--yes').stderr, /^deleted: \.ctxcap\/badge\.owned$/m);
+  assert.deepEqual(Object.keys(await tree(orphan)), ['README.md']);
 });

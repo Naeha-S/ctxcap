@@ -142,6 +142,10 @@ workflow beside it, and the exit code stays 0.
 - Files that `init` creates whole (the skill, the Cursor rule, the workflow,
   `.ctxcap/.gitignore`) carry a `ctxcap:managed` marker. A file at one of those
   paths without the marker is yours, and `init` leaves it alone.
+- `.ctxcap/badge.json` cannot carry a marker, because shields.io rejects keys
+  it does not know. `init` writes `.ctxcap/badge.owned` beside it instead.
+  `--remove` deletes the badge only while that file is there, so a badge you
+  made yourself with `ctxcap --badge` is never deleted.
 
 ```bash
 npx ctxcap init --remove          # print what would be removed

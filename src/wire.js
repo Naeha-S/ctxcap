@@ -68,8 +68,9 @@ const mcpServer = ({ version, pin }) => ({
 
 // .ctxcap/ holds the hook stamp and saved plans, which are not source, and the
 // badge, which is. The Claude hooks and the badge both need this file.
+export const BADGE_OWNED = '.ctxcap/badge.owned';
 const stateIgnore = (groups) => ({
-  groups, path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n`
+  groups, path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n!badge.owned\n`
 });
 
 // ---------------------------------------------------------------- Claude Code
@@ -318,7 +319,13 @@ async function badge(context, others) {
   const readme = await existing(context.root, README_NAMES);
   return [
     // Measured only when init is about to write it: doctor and remove never need the number.
-    { groups: ['badge'], path: BADGE_FILE, kind: 'file', marker: '"schemaVersion"', content: async () => badgeText(await totalAfter(context, others)) },
+    // shields.io rejects unknown keys, so the JSON cannot carry a marker: the
+    // sentinel beside it is what says init wrote it and remove may delete it.
+    {
+      groups: ['badge'], path: BADGE_FILE, kind: 'file',
+      sentinel: { path: BADGE_OWNED, content: 'ctxcap init wrote badge.json. While this file is here, ctxcap init --remove deletes both.\n' },
+      content: async () => badgeText(await totalAfter(context, others))
+    },
     ...(readme ? [{ groups: ['badge'], path: readme, kind: 'block', place: 'after-h1', lines: [badgeMarkdown(repo)] }] : []),
     stateIgnore(['claude', 'badge'])
   ];

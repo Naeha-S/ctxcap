@@ -250,7 +250,7 @@ test('ci: the workflow parses and pins the action to the package version', async
 // ------------------------------------------------------------------ all five
 
 const WIRED = [
-  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.ctxcap/badge.json', '.cursor/rules/ctxcap.mdc',
+  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.ctxcap/badge.json', '.ctxcap/badge.owned', '.cursor/rules/ctxcap.mdc',
   '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', 'AGENTS.md'
 ];
 
@@ -274,7 +274,8 @@ test('init: --print writes nothing, --yes writes every target, a second --yes is
   const second = cli(dir, 'init', '--yes');
   assert.equal(second.status, 0);
   assert.equal(second.stdout, '');
-  assert.deepEqual(second.stderr.trim().split('\n').sort(), WIRED.map((file) => `skipped: ${file} (already configured)`).sort());
+  // One line per target; the badge's ownership sentinel travels with the badge.
+  assert.deepEqual(second.stderr.trim().split('\n').sort(), WIRED.filter((file) => file !== '.ctxcap/badge.owned').map((file) => `skipped: ${file} (already configured)`).sort());
   assert.deepEqual(await tree(dir), wired);
 
   const forced = cli(dir, 'init', '--yes', '--force');
