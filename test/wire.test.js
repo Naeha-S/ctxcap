@@ -163,3 +163,41 @@ test('cursor: the rule has valid YAML frontmatter that attaches to context files
   assert.deepEqual(JSON.parse(wired['.cursor/mcp.json']), JSON.parse(wired['.mcp.json']));
   assert.deepEqual(mcp.mcpServers.ctxcap, JSON.parse(wired['.mcp.json']).mcpServers.ctxcap);
 });
+
+// ------------------------------------------------------------------ Codex, Copilot
+
+const AGENTS = '# Agent notes\n\nUse pnpm, not npm.\n\n## Never\n\n- Never commit secrets.\n- Never edit generated files under `dist/`.\n';
+
+test('codex: an existing AGENTS.md is byte-identical outside the fenced block', async () => {
+  const dir = await repo({ 'AGENTS.md': AGENTS });
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'codex').status, 0);
+  const wired = (await tree(dir))['AGENTS.md'];
+
+  const begin = wired.indexOf('<!-- ctxcap:begin -->');
+  const end = wired.indexOf('<!-- ctxcap:end -->') + '<!-- ctxcap:end -->'.length;
+  assert.ok(begin > 0 && end > begin);
+  assert.equal(wired.slice(0, begin), AGENTS + '\n');
+  assert.equal(wired.slice(end), '\n');
+
+  const block = wired.slice(begin, end).split('\n').slice(1, -1);
+  assert.equal(block.length, 2);
+  assert.ok(block[0].includes(`npx ctxcap@${VERSION} --json`));
+
+  cli(dir, 'init', '--remove', '--yes', '--agents', 'codex');
+  assert.equal((await tree(dir))['AGENTS.md'], AGENTS);
+});
+
+test('codex and copilot: missing files are created holding only the block', async () => {
+  const dir = await repo();
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'codex,copilot').status, 0);
+  const files = await tree(dir);
+  assert.deepEqual(Object.keys(files).sort(), ['.github/copilot-instructions.md', 'AGENTS.md']);
+  for (const [file, lines] of [['AGENTS.md', 2], ['.github/copilot-instructions.md', 3]]) {
+    const all = files[file].trimEnd().split('\n');
+    assert.deepEqual([all[0], all.at(-1)], ['<!-- ctxcap:begin -->', '<!-- ctxcap:end -->'], file);
+    assert.equal(all.length - 2, lines, file);
+    assert.ok(all[1].includes(`npx ctxcap@${VERSION} --json`), file);
+  }
+  cli(dir, 'init', '--remove', '--yes');
+  assert.deepEqual(await tree(dir), {});
+});

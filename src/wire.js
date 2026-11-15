@@ -147,6 +147,29 @@ function cursor(context) {
   ];
 }
 
+// ---------------------------------------------------------------- Codex, Copilot
+
+function pointers(context) {
+  const run = npx(context);
+  return [
+    {
+      groups: ['codex'], path: 'AGENTS.md', kind: 'block', place: 'append',
+      lines: [
+        `\`${run} --json\` counts the tokens in agent context files such as this one.`,
+        'Run it before and after you edit one, and report the change.'
+      ]
+    },
+    {
+      groups: ['copilot'], path: '.github/copilot-instructions.md', kind: 'block', place: 'append',
+      lines: [
+        `\`${run} --json\` counts the tokens in agent context files: this file, AGENTS.md, CLAUDE.md, and .cursor/rules.`,
+        'Run it before and after you edit one, and report the change in the pull request.',
+        `When the total is over budget, \`${run} --plan --budget <n>\` lists the line ranges to cut.`
+      ]
+    }
+  ];
+}
+
 /**
  * A target is one of three kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
@@ -155,5 +178,5 @@ function cursor(context) {
  * `groups` lists the agents the target belongs to.
  */
 export function targetsFor(context) {
-  return [...claude(context), ...cursor(context)];
+  return [...claude(context), ...cursor(context), ...pointers(context)];
 }
