@@ -1,21 +1,21 @@
-﻿{
+{
   "schema": "ctxcap/v1",
   "approximate": true,
   "tokenizer": "gpt-tokenizer@3.0.1",
-  "total": 259,
+  "total": 228,
   "totalByClass": {
-    "startup": 228,
+    "startup": 197,
     "always": 31
   },
   "totalBudget": null,
-  "delta": 259,
+  "delta": 228,
   "over": false,
   "baselineFound": false,
   "files": [
     {
       "path": "AGENTS.md",
-      "tokens": 228,
-      "delta": 228,
+      "tokens": 197,
+      "delta": 197,
       "budget": null,
       "loadClass": "startup"
     },

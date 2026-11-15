@@ -27,12 +27,14 @@ npx ctxcap --verify <planId>                  # catch drift and violations
 Three rules for the agent:
 
 1. Splice by `startLine`/`endLine`. Never rewrite a file from scratch.
-2. Never cut a span listed in `preserve`.
+2. Never cut a span listed in `preserve`. The one exception is a `condense`
+   finding on that span: apply its `condensedText` exactly as given.
 3. If `satisfiable` is false, report `minAchievable` and stop.
 
 Verification is a guardrail, not a semantic proof. It checks whether planned
-source text was removed, whether applied files drifted, and whether recorded
-preserve text remains. It cannot tell whether a replacement still means the
+source text was removed, whether applied files drifted, whether recorded
+preserve text remains, and whether every rule sentence of a condensed
+paragraph is still present. It cannot tell whether a replacement still means the
 same thing or whether an unmarked instruction was important. Review the diff
 and the surrounding scope, exceptions, and qualifiers before accepting a trim.
 
@@ -56,29 +58,32 @@ Agents can fetch the five-line loop from [`llms.txt`](llms.txt).
 
 [`examples/case-study/`](examples/case-study/) contains a reproducible
 multi-file run. It starts with 1,504 tokens (1,473 startup-loaded and 31
-always-loaded), applies plan `0015f7` at budget 400, and finishes at 259
-tokens. The plan's `minAchievable` is 259, two condenses apply, and the
-preserve span in `CLAUDE.md` survives verification with zero missed findings
-or violations.
+always-loaded), applies plan `6b8e55` at budget 400, and finishes at 228
+tokens. The plan's `minAchievable` is 228 and two condenses apply. One of them
+is on a load-bearing paragraph in `AGENTS.md`: its replacement keeps the
+`Do not silently drop a requirement` sentence. The preserve span in
+`CLAUDE.md` is untouched, and verification reports zero missed findings or
+violations.
 
 The committed [`before.json`](examples/case-study/before.json),
 [`plan.json`](examples/case-study/plan.json), [`apply.json`](examples/case-study/apply.json),
 [`apply.diff`](examples/case-study/apply.diff), [`verify.json`](examples/case-study/verify.json),
-and [`after.json`](examples/case-study/after.json) show every number. Re-run
-the commands below from the repository root to reproduce it:
+and [`after.json`](examples/case-study/after.json) show every number. The
+context files in that directory are committed in their "before" state. Re-run
+the commands below from the repository root to reproduce it, then restore the
+files with `git checkout examples/case-study`:
 
 ```bash
 npx ctxcap --json --root examples/case-study
 npx ctxcap --plan --budget 400 --root examples/case-study
 npx ctxcap --plan --budget 400 --apply --root examples/case-study
-npx ctxcap --verify 0015f7 --root examples/case-study
+npx ctxcap --verify 6b8e55 --root examples/case-study
 ```
 
-Measured correction: the first condensed candidate was bounded at a sentence
-boundary and verification confirmed both replacements rather than trusting
-shifted line numbers. The 1,245-token reduction is useful because the
-remaining 259 tokens include the preserve rule that prevents repeating the
-release investigation.
+Both replacements end at sentence boundaries, and verification confirmed them
+by content rather than trusting shifted line numbers. The 1,276-token
+reduction is useful because the remaining 228 tokens still include both rules:
+the `Do not` sentence in `AGENTS.md` and the `# Never` rule in `CLAUDE.md`.
 
 Context can be stale as well as large. Run the dead-reference pass to find
 paths, commands, globs, and `@path`/`#path` references that no longer resolve:
@@ -217,8 +222,12 @@ Reports include `totalByClass` for `always`, `startup`, `conditional`, and
 `manual` files. `total` remains for compatibility and is the sum of all
 classes; the `--budget` gate applies only to always and startup files.
 Condense findings report net `tokensFreed`, `replacementTokens`, and a score.
-Their replacements end at sentence or clause boundaries rather than a fixed
-character truncation. Plan output uses schema `ctxcap/plan/v2`.
+A replacement is built from whole sentences or clauses: the leading ones that
+fit `--max-condense-chars`, plus every sentence containing `must`, `never`,
+`always`, `do not`, or `don't`. Repeated sentences are dropped. Under a
+preserve heading or `<!-- ctxcap:preserve -->` marker only repeated sentences
+are dropped. A paragraph that cannot be shortened this way gets no condense
+finding. Plan output uses schema `ctxcap/plan/v2`.
 
 **Defaults** (when no config exists): scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `prompts/**`, `*.prompt`, `.cursor/rules/**`.
 

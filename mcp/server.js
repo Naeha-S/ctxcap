@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Minimal stdio MCP server (Content-Length framed JSON-RPC). No SDK dependency.
+// Minimal stdio MCP server (newline-delimited JSON-RPC, per the MCP stdio transport). No SDK dependency.
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -25,7 +25,7 @@ const TOOLS = [
   },
   {
     name: 'context_budget_plan',
-    description: 'Use before appending more than ~50 lines or when CLAUDE.md, AGENTS.md, Cursor rules, or prompts exceed budget. Input: required integer budget plus optional maxFindings, includeDiff, and apply. Returns a deterministic ranked plan with file line ranges, tokensFreed, confidence, safety actions, preserve spans, and satisfiable/minAchievable stop state. Apply entries in order by startLine/endLine, never rewrite a file, never cut preserve spans, stop when satisfiable is false, and call context_budget_verify after edits.',
+    description: 'Use before appending more than ~50 lines or when CLAUDE.md, AGENTS.md, Cursor rules, or prompts exceed budget. Input: required integer budget plus optional maxFindings, includeDiff, and apply. Returns a deterministic ranked plan with file line ranges, tokensFreed, confidence, safety actions, preserve spans, and satisfiable/minAchievable stop state. Apply entries in order by startLine/endLine, never rewrite a file, never cut preserve spans except by applying the condensedText of a condense entry exactly as given, stop when satisfiable is false, and call context_budget_verify after edits.',
     inputSchema: { type: 'object', required: ['budget'], properties: { budget: { type: 'integer' }, maxFindings: { type: 'integer' }, includeDiff: { type: 'boolean' }, apply: { type: 'boolean' } } }
   },
   {
@@ -55,28 +55,25 @@ async function measure(extra) {
 }
 
 function send(msg) {
-  const body = JSON.stringify(msg);
-  process.stdout.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+  process.stdout.write(`${JSON.stringify(msg)}\n`);
 }
 const reply = (id, result) => send({ jsonrpc: '2.0', id, result });
 const fail = (id, message, code = -32603) => send({ jsonrpc: '2.0', id, error: { code, message } });
+const toolResult = (value, isError = false) => ({ content: [{ type: 'text', text: JSON.stringify(value) }], ...(isError ? { isError: true } : {}) });
 
-let buf = Buffer.alloc(0);
-process.stdin.on('data', async (chunk) => {
-  buf = Buffer.concat([buf, chunk]);
-  for (;;) {
-    const idx = buf.indexOf('\r\n\r\n');
-    if (idx === -1) return;
-    const m = /Content-Length: (\d+)/i.exec(buf.subarray(0, idx).toString('utf8'));
-    if (!m) { buf = buf.subarray(idx + 4); continue; }
-    const len = Number(m[1]);
-    const start = idx + 4;
-    if (buf.length < start + len) return;
-    const raw = buf.subarray(start, start + len).toString('utf8');
-    buf = buf.subarray(start + len);
+// One JSON-RPC message per line, handled in arrival order.
+let buf = '';
+let queue = Promise.resolve();
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => {
+  buf += chunk;
+  for (let idx = buf.indexOf('\n'); idx !== -1; idx = buf.indexOf('\n')) {
+    const line = buf.slice(0, idx).trim();
+    buf = buf.slice(idx + 1);
+    if (!line) continue;
     let msg;
-    try { msg = JSON.parse(raw); } catch { continue; }
-    await handle(msg);
+    try { msg = JSON.parse(line); } catch { fail(null, 'parse error', -32700); continue; }
+    queue = queue.then(() => handle(msg));
   }
 });
 
@@ -90,6 +87,7 @@ async function handle(msg) {
         serverInfo: { name: TOOL_NAME, version: VERSION }
       });
     }
+    if (method === 'ping') return reply(id, {});
     if (method === 'tools/list') return reply(id, { tools: TOOLS });
     if (method === 'tools/call') {
       const name = params?.name;
@@ -119,7 +117,7 @@ async function handle(msg) {
       if (name === 'context_budget_verify') {
         const plan = plans.get(params?.arguments?.planId);
         if (!plan) return fail(id, 'plan not found', -32602);
-        return reply(id, await verifyPlan(plan, ROOT));
+        return reply(id, toolResult(await verifyPlan(plan, ROOT)));
       }
       return fail(id, `unknown tool: ${name}`, -32602);
     }
@@ -128,7 +126,7 @@ async function handle(msg) {
   } catch (err) {
     if (id !== undefined) {
       const error = { error: { code: err.code ?? 'TOKENIZER_FAILED', message: err.message, ...(err.fix ? { fix: err.fix } : {}) } };
-      return reply(id, error);
+      return method === 'tools/call' ? reply(id, toolResult(error, true)) : fail(id, err.message);
     }
   }
 }

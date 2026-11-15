@@ -44,7 +44,7 @@ npx -y ctxcap@latest --plan --budget 40000
 # Expected: schema "ctxcap/plan/v2", deterministic planId, and preserve spans
 
 # 3. Direct MCP runner verification
-node -e "const {spawn} = require('child_process'); const p = spawn('npx', ['-y', 'ctxcap-mcp@latest'], {shell: true}); const b = JSON.stringify({jsonrpc: '2.0', id: 1, method: 'initialize', params: {}}); p.stdout.on('data', d => { console.log(d.toString()); process.exit(0); }); p.stdin.write('Content-Length: ' + Buffer.byteLength(b) + '\r\n\r\n' + b); setTimeout(() => { console.error('TIMEOUT'); process.exit(1); }, 15000);"
+node -e "const {spawn} = require('child_process'); const p = spawn('npx', ['-y', 'ctxcap-mcp@latest'], {shell: true}); const b = JSON.stringify({jsonrpc: '2.0', id: 1, method: 'initialize', params: {}}); p.stdout.on('data', d => { console.log(d.toString()); process.exit(0); }); p.stdin.write(b + '\n'); setTimeout(() => { console.error('TIMEOUT'); process.exit(1); }, 15000);"
 # Expected: serverInfo with name: "ctxcap", version: "1.3.0"
 ```
 

@@ -8,25 +8,20 @@ import packageJson from '../package.json' with { type: 'json' };
 
 const SERVER = path.resolve('mcp/server.js');
 
+// MCP stdio transport: one JSON-RPC message per line.
 function request(proc, message) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify(message);
-    let output = Buffer.alloc(0);
+    let output = '';
     const onData = (chunk) => {
-      output = Buffer.concat([output, chunk]);
-      const end = output.indexOf('\r\n\r\n');
+      output += chunk;
+      const end = output.indexOf('\n');
       if (end === -1) return;
-      const match = /Content-Length: (\d+)/i.exec(output.subarray(0, end).toString());
-      if (!match) return reject(new Error('missing Content-Length'));
-      const length = Number(match[1]);
-      const start = end + 4;
-      if (output.length < start + length) return;
       proc.stdout.off('data', onData);
-      resolve(JSON.parse(output.subarray(start, start + length).toString()));
+      resolve(JSON.parse(output.slice(0, end)));
     };
     proc.stdout.on('data', onData);
     proc.once('error', reject);
-    proc.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+    proc.stdin.write(`${JSON.stringify(message)}\n`);
   });
 }
 
@@ -61,7 +56,14 @@ test('MCP initialize and tools call return the current package version and repor
       jsonrpc: '2.0', id: 5, method: 'tools/call',
       params: { name: 'context_budget_verify', arguments: { planId: plan.planId } }
     });
-    assert.equal(verified.result.satisfied, false);
+    assert.equal(JSON.parse(verified.result.content[0].text).satisfied, false);
+
+    const invalid = await request(proc, {
+      jsonrpc: '2.0', id: 7, method: 'tools/call',
+      params: { name: 'context_budget_plan', arguments: { budget: -1 } }
+    });
+    assert.equal(invalid.result.isError, true);
+    assert.equal(JSON.parse(invalid.result.content[0].text).error.code, 'BUDGET_INVALID');
 
     const alias = await request(proc, {
       jsonrpc: '2.0', id: 6, method: 'tools/call',
