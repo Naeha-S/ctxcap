@@ -338,7 +338,8 @@ export async function doctor({ root, version = VERSION, targets }) {
     const broken = files.filter((file) => ['missing', 'invalid', 'shadowed'].includes(file.state));
     // A file shared with another agent does not make this one wired by itself.
     const own = mine.filter((item) => item.target.groups.length === 1);
-    const status = own.every((item) => item.state === 'absent') ? 'not wired'
+    // Nor does a file of the user's that does not parse, where nothing of ours can be.
+    const status = own.every((item) => item.state === 'absent' || item.state === 'invalid') ? 'not wired'
       : broken.length > 0 ? 'partially wired'
       : files.some((file) => file.state === 'stale') ? 'stale pin'
       : 'wired';

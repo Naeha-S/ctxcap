@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { countTokens } from '../src/tokenize.js';
-import { SKILL_DESCRIPTION, AGENT_RULES } from '../src/wire.js';
+import { SKILL_DESCRIPTION, AGENT_RULES, GROUPS, DEFAULT_GROUPS } from '../src/wire.js';
 import { VERSION } from '../src/version.js';
 import { CLI, cli, repo, tree } from './helpers.js';
 
@@ -51,7 +51,7 @@ test('claude: the three agent rules are the ones in the README, word for word', 
 
 test('claude: hooks merge into settings that already have a user hook, and come back out', async () => {
   const original = JSON.stringify(USER_SETTINGS, null, 2) + '\n';
-  const dir = await repo({ '.claude/settings.json': original, '.mcp.json': JSON.stringify({ mcpServers: { github: { command: 'gh-mcp' } } }, null, 2) + '\n' });
+  const dir = await repo({ '.claude/settings.json': original });
   assert.equal(cli(dir, 'init', '--yes', '--agents', 'claude').status, 0);
   const files = await tree(dir);
   const settings = JSON.parse(files['.claude/settings.json']);
@@ -69,9 +69,8 @@ test('claude: hooks merge into settings that already have a user hook, and come 
   });
   assert.deepEqual(settings.hooks.Stop, [{ hooks: [{ type: 'command', command: `npx -y ctxcap@${VERSION} hook stop`, timeout: 60 }] }]);
 
-  const mcp = JSON.parse(files['.mcp.json']);
-  assert.deepEqual(mcp.mcpServers.github, { command: 'gh-mcp' });
-  assert.deepEqual(mcp.mcpServers.ctxcap, { command: 'npx', args: ['-y', '-p', `ctxcap@${VERSION}`, 'ctxcap-mcp'] });
+  // No MCP server unless it is asked for.
+  assert.ok(!('.mcp.json' in files));
 
   assert.equal(cli(dir, 'init', '--remove', '--yes', '--agents', 'claude').status, 0);
   assert.equal((await tree(dir))['.claude/settings.json'], original);
@@ -79,7 +78,7 @@ test('claude: hooks merge into settings that already have a user hook, and come 
 
 test('claude: --no-pin writes commands without a version', async () => {
   const dir = await repo();
-  cli(dir, 'init', '--yes', '--no-pin', '--agents', 'claude');
+  cli(dir, 'init', '--yes', '--no-pin', '--agents', 'claude,mcp');
   const files = await tree(dir);
   assert.ok(!Object.values(files).some((text) => /ctxcap@\d/.test(text)));
   assert.ok(files['.claude/skills/ctxcap/SKILL.md'].includes('npx ctxcap --json'));
@@ -141,10 +140,12 @@ test('hook stop: silent under budget, one message for the user over it, never ex
 // ------------------------------------------------------------------ Cursor
 
 test('cursor: the rule has valid YAML frontmatter that attaches to context files only', async () => {
-  const dir = await repo({ '.cursor/mcp.json': JSON.stringify({ mcpServers: { linear: { url: 'https://mcp.linear.app' } } }, null, 2) + '\n' });
+  const servers = JSON.stringify({ mcpServers: { linear: { url: 'https://mcp.linear.app' } } }, null, 2) + '\n';
+  const dir = await repo({ '.cursor/mcp.json': servers });
   assert.equal(cli(dir, 'init', '--yes', '--agents', 'cursor').status, 0);
   const files = await tree(dir);
   assert.deepEqual(Object.keys(files).sort(), ['.cursor/mcp.json', '.cursor/rules/ctxcap.mdc']);
+  assert.equal(files['.cursor/mcp.json'], servers);
 
   const { data, body } = frontmatter(files['.cursor/rules/ctxcap.mdc']);
   assert.deepEqual(Object.keys(data), ['description', 'alwaysApply', 'globs']);
@@ -153,15 +154,34 @@ test('cursor: the rule has valid YAML frontmatter that attaches to context files
   assert.deepEqual(data.globs.split(','), ['CLAUDE.md', 'AGENTS.md', '**/CLAUDE.md', '**/AGENTS.md']);
   assert.ok(body.includes(`npx ctxcap@${VERSION} --json`));
 
-  const mcp = JSON.parse(files['.cursor/mcp.json']);
-  assert.deepEqual(mcp.mcpServers.linear, { url: 'https://mcp.linear.app' });
+});
 
-  // Same server entry as Claude Code gets in .mcp.json.
-  const both = await repo();
-  cli(both, 'init', '--yes', '--agents', 'claude,cursor');
-  const wired = await tree(both);
-  assert.deepEqual(JSON.parse(wired['.cursor/mcp.json']), JSON.parse(wired['.mcp.json']));
-  assert.deepEqual(mcp.mcpServers.ctxcap, JSON.parse(wired['.mcp.json']).mcpServers.ctxcap);
+// ------------------------------------------------------------------ MCP (opt-in)
+
+test('mcp: off by default, and --agents claude,mcp adds the same server for Claude Code and Cursor', async () => {
+  assert.deepEqual(DEFAULT_GROUPS, GROUPS.filter((group) => group !== 'mcp'));
+  const servers = (extra) => JSON.stringify({ mcpServers: extra }, null, 2) + '\n';
+  const fixture = { '.mcp.json': servers({ github: { command: 'gh-mcp' } }), '.cursor/mcp.json': servers({ linear: { url: 'https://mcp.linear.app' } }) };
+
+  const plain = await repo(fixture);
+  assert.equal(cli(plain, 'init', '--yes').status, 0);
+  const untouched = await tree(plain);
+  assert.equal(untouched['.mcp.json'], fixture['.mcp.json']);
+  assert.equal(untouched['.cursor/mcp.json'], fixture['.cursor/mcp.json']);
+  assert.match(cli(plain, 'doctor').stdout, /^mcp {6}not wired$/m);
+
+  const dir = await repo(fixture);
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'claude,mcp').status, 0);
+  const files = await tree(dir);
+  const entry = { command: 'npx', args: ['-y', '-p', `ctxcap@${VERSION}`, 'ctxcap-mcp'] };
+  assert.deepEqual(JSON.parse(files['.mcp.json']), { mcpServers: { github: { command: 'gh-mcp' }, ctxcap: entry }, _ctxcap: { version: VERSION } });
+  assert.deepEqual(JSON.parse(files['.cursor/mcp.json']), { mcpServers: { linear: { url: 'https://mcp.linear.app' }, ctxcap: entry }, _ctxcap: { version: VERSION } });
+  assert.ok('.claude/skills/ctxcap/SKILL.md' in files && !('.cursor/rules/ctxcap.mdc' in files));
+  assert.match(cli(dir, 'doctor').stdout, /^mcp {6}wired$/m);
+
+  // Remove without --agents takes out everything init can write, MCP included.
+  assert.equal(cli(dir, 'init', '--remove', '--yes').status, 0);
+  assert.deepEqual(await tree(dir), fixture);
 });
 
 // ------------------------------------------------------------------ Codex, Copilot
@@ -230,8 +250,8 @@ test('ci: the workflow parses and pins the action to the package version', async
 // ------------------------------------------------------------------ all five
 
 const WIRED = [
-  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.ctxcap/badge.json', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc',
-  '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', '.mcp.json', 'AGENTS.md'
+  '.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.ctxcap/badge.json', '.cursor/rules/ctxcap.mdc',
+  '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', 'AGENTS.md'
 ];
 
 test('init: --print writes nothing, --yes writes every target, a second --yes is a byte-identical no-op', async () => {

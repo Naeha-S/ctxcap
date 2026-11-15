@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { GROUPS } from '../src/wire.js';
 import { CLI, cli, git, repo, tree, treeHash } from './helpers.js';
 
 const FIXTURE = {
@@ -22,7 +23,8 @@ test('remove: init then remove leaves the tree hash unchanged and git status cle
   const dir = await repo(FIXTURE);
   const before = await treeHash(dir);
 
-  assert.equal(cli(dir, 'init', '--yes').status, 0);
+  // Every agent, the opt-in MCP entries included.
+  assert.equal(cli(dir, 'init', '--yes', '--agents', GROUPS.join(',')).status, 0);
   assert.notEqual(await treeHash(dir), before);
   // The Claude hook leaves a stamp behind; remove has to clear that as well.
   spawnSync('node', [CLI, 'hook', 'post-edit'], { cwd: dir, input: '', env: { ...process.env, CLAUDE_PROJECT_DIR: dir } });
@@ -50,7 +52,7 @@ test('remove: a subset leaves the other agents wired, and shared files with them
   assert.equal(files['AGENTS.md'], FIXTURE['AGENTS.md']);
   assert.equal(files['.cursor/mcp.json'], FIXTURE['.cursor/mcp.json']);
   assert.ok(!('.cursor/rules/ctxcap.mdc' in files));
-  for (const kept of ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.mcp.json', '.ctxcap/.gitignore', '.github/workflows/ctxcap.yml', '.github/copilot-instructions.md']) {
+  for (const kept of ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.ctxcap/.gitignore', '.github/workflows/ctxcap.yml', '.github/copilot-instructions.md']) {
     assert.equal(files[kept], wired[kept], kept);
   }
 });

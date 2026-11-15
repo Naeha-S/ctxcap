@@ -6,8 +6,10 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-export const GROUPS = ['claude', 'cursor', 'codex', 'copilot', 'ci', 'badge'];
-export const DEFAULT_GROUPS = GROUPS;
+export const GROUPS = ['claude', 'cursor', 'codex', 'copilot', 'ci', 'badge', 'mcp'];
+// The MCP server costs about 500 tokens of tool definitions in every session,
+// for steps the skill already covers, so it is written only when asked for.
+export const DEFAULT_GROUPS = GROUPS.filter((group) => group !== 'mcp');
 
 export const BEGIN = '<!-- ctxcap:begin -->';
 export const END = '<!-- ctxcap:end -->';
@@ -125,7 +127,6 @@ function claude(context) {
         Stop: { hooks: [command('stop')] }
       }
     }),
-    keyTarget({ groups: ['claude'], path: '.mcp.json', section: 'mcpServers', name: 'ctxcap', value: mcpServer(context) }),
     // The hook keeps a stamp here and plans are saved here; none of it is source.
     stateIgnore(['claude', 'badge']),
     { groups: ['claude'], path: '.ctxcap/stamp', kind: 'state' }
@@ -155,10 +156,16 @@ If the total is over budget, run \`${run} --plan --budget <n>\`, cut only the li
 
 function cursor(context) {
   return [
-    { groups: ['cursor'], path: '.cursor/rules/ctxcap.mdc', kind: 'file', marker: MANAGED_MD, content: cursorRule(context) },
-    keyTarget({ groups: ['cursor'], path: '.cursor/mcp.json', section: 'mcpServers', name: 'ctxcap', value: mcpServer(context) })
+    { groups: ['cursor'], path: '.cursor/rules/ctxcap.mdc', kind: 'file', marker: MANAGED_MD, content: cursorRule(context) }
   ];
 }
+
+// ---------------------------------------------------------------- MCP (opt-in)
+
+// The same server entry for Claude Code and for Cursor, so both get the same tools.
+const mcp = (context) => ['.mcp.json', '.cursor/mcp.json'].map((file) => keyTarget({
+  groups: ['mcp'], path: file, section: 'mcpServers', name: 'ctxcap', value: mcpServer(context)
+}));
 
 // ---------------------------------------------------------------- Codex, Copilot
 
@@ -326,7 +333,7 @@ async function badge(context, others) {
  * `groups` lists the agents the target belongs to.
  */
 export async function targetsFor(context) {
-  const agents = [...claude(context), ...cursor(context), ...pointers(context), ...ci(context)];
+  const agents = [...claude(context), ...cursor(context), ...pointers(context), ...ci(context), ...mcp(context)];
   const extra = await badge(context, agents);
   // The Claude hooks and the badge share .ctxcap/.gitignore: list it once.
   return [...agents, ...extra.filter((target) => !agents.some((other) => other.path === target.path))];

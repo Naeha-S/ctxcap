@@ -80,17 +80,21 @@ Nothing is installed, and nothing runs at install time.
 
 | Agent | `--agents` | Files | Cost in the context window |
 | --- | --- | --- | --- |
-| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, a server in `.mcp.json`, `.ctxcap/.gitignore` | 53 tokens per session for the skill's name and description, 292 once the skill loads, and about 500 for the four MCP tool definitions |
-| Cursor | `cursor` | `.cursor/rules/ctxcap.mdc`, a server in `.cursor/mcp.json` | 140 tokens when a `CLAUDE.md` or `AGENTS.md` is in the conversation, and the same MCP tool definitions |
+| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, `.ctxcap/.gitignore` | 53 tokens per session for the skill's name and description, 292 once the skill loads |
+| Cursor | `cursor` | `.cursor/rules/ctxcap.mdc` | 140 tokens when a `CLAUDE.md` or `AGENTS.md` is in the conversation |
 | Codex | `codex` | A 2-line block in `AGENTS.md` | 51 tokens per session |
 | Copilot | `copilot` | A 3-line block in `.github/copilot-instructions.md` | 101 tokens per session |
 | CI | `ci` | `.github/workflows/ctxcap.yml` | None |
 | README badge | `badge` | `.ctxcap/badge.json`, one line under the README title | None |
+| MCP server, opt-in | `mcp` | A server entry in `.mcp.json` and in `.cursor/mcp.json` | About 500 tokens per session for four tool definitions |
 
 The costs are counted by `ctxcap` itself and are approximate. The blocks in
 `AGENTS.md` and the Copilot file, and the Cursor rule, are context files, so
-they show up in your own report. The MCP server is the largest item: leave it
-out with `--agents` if the skill is enough, since both expose the same steps.
+they show up in your own report. The MCP server is not written by default: it
+costs about 500 tokens in every session and starts a server process, for the
+same measure, plan, and verify steps the skill gives Claude Code for 53. What
+it adds is the same tools in Claude Code and Cursor. To include it, name it:
+`npx ctxcap init --yes --agents claude,mcp`.
 
 The two Claude Code hooks stay quiet unless there is something to say:
 
@@ -106,8 +110,8 @@ That second is added to every edit Claude Code makes.
 | --- | --- |
 | `--yes` | Apply the diff. Without it, nothing is written |
 | `--print` | Print the diff and exit 0 |
-| `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge` (default: all) |
-| `--remove` | Undo what `init` wrote |
+| `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge,mcp` (default: all but `mcp`) |
+| `--remove` | Undo what `init` wrote, for every agent unless `--agents` is given |
 | `--force` | Overwrite a file or entry at a `ctxcap` path that `init` did not write |
 | `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.0` |
 
@@ -408,7 +412,9 @@ npx skills add Naeha-S/ctxcap
 
 Then ask "how many tokens do my context files cost?" or "is AGENTS.md stale?".
 
-**As an MCP server.** The same measure, plan, and verify steps as tools:
+**As an MCP server.** The same measure, plan, and verify steps as tools. The
+four tool definitions cost about 500 tokens in every session, which is why
+`ctxcap init` leaves the server out unless you pass `--agents claude,mcp`:
 
 [![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=ctxcap&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsImN0eGNhcC1tY3AiXX0%3D)
 
