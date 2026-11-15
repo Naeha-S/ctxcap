@@ -18,7 +18,7 @@ test('each skill is named after its directory and only uses documented flags', a
   const names = await readdir(root);
   assert.ok(names.length > 0);
   for (const name of names) {
-    const text = await readFile(new URL(`${name}/SKILL.md`, root), 'utf8');
+    const text = (await readFile(new URL(`${name}/SKILL.md`, root), 'utf8')).replace(/\r\n/g, '\n');
     const front = /^---\n([\s\S]*?)\n---\n/.exec(text);
     assert.ok(front, `${name}: frontmatter`);
     assert.equal(/^name: (.+)$/m.exec(front[1])?.[1], name);

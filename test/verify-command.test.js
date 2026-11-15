@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { VERSION } from '../src/version.js';
-import { cli, repo } from './helpers.js';
+import { cli, committed, repo } from './helpers.js';
 
 const STUDY = 'examples/case-study';
-const snapshot = await readFile(`${STUDY}/plan.json`, 'utf8');
+const snapshot = await committed(`${STUDY}/plan.json`);
 const study = async () => repo({
-  [`${STUDY}/AGENTS.md`]: await readFile(`${STUDY}/AGENTS.md`, 'utf8'),
-  [`${STUDY}/CLAUDE.md`]: await readFile(`${STUDY}/CLAUDE.md`, 'utf8')
+  [`${STUDY}/AGENTS.md`]: await committed(`${STUDY}/AGENTS.md`),
+  [`${STUDY}/CLAUDE.md`]: await committed(`${STUDY}/CLAUDE.md`)
 });
 // Run a command the CLI printed, with this checkout standing in for the npm package.
 const run = (dir, command) => {
