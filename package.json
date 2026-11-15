@@ -23,7 +23,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node test/run.mjs",
     "mcp": "node mcp/server.js"
   },
   "dependencies": {
