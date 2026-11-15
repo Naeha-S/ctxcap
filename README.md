@@ -203,12 +203,13 @@ npx ctxcap doctor
 ```
 
 ```text
-claude   wired
+claude   partially wired: missing .claude/skills/ctxcap/SKILL.md
 cursor   not wired
 codex    stale pin: AGENTS.md has 1.4.0, current is 1.5.0
-copilot  partially wired: missing .github/copilot-instructions.md
-ci       wired
+copilot  wired
+ci       wired: by .github/workflows/lint.yml, not written by ctxcap init
 badge    wired
+mcp      not wired
 ```
 
 `doctor` exits 1 when an agent is partially wired or pinned to a different

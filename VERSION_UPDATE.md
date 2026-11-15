@@ -24,10 +24,12 @@ repository search.
    `node src/index.js --update-baseline`. Both `init` and
    `node src/index.js doctor` must exit 0; a test fails when they do not. Do
    not pass `--force`: it would replace the hand-written workflow.
-9. Publish to npm before merging to `main`, or straight after. The wiring that
+9. `DISCOVERY.md` — before the tag, fill in the baseline numbers it could not
+   read and the two live-session tables (Claude Code and Cursor).
+10. Publish to npm before merging to `main`, or straight after. The wiring that
    `init` writes runs `npx ctxcap@X.Y.Z` and `Naeha-S/ctxcap@vX.Y.Z`, and both
    fail until that version and tag exist.
-10. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
+11. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
 
 ## Required checks
 
