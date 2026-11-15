@@ -55,5 +55,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "yaml": "^2.9.1"
+  }
 }

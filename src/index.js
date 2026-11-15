@@ -5,6 +5,7 @@ import process from 'node:process';
 // edit do not pay for the tokenizer unless they need it.
 async function run(argv) {
   if (argv[0] === 'init') return (await import('./init.js')).initCli(argv.slice(1));
+  if (argv[0] === 'hook') return (await import('./hook.js')).hookCli(argv.slice(1));
   return (await import('./cli.js')).main(argv);
 }
 

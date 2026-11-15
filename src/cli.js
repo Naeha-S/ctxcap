@@ -1,9 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { loadConfig } from './config.js';
-import { collectFiles, loadClassFor } from './glob.js';
-import { countTokens } from './tokenize.js';
+import { measureFiles } from './measure.js';
 import { loadBaseline, saveBaseline, BASELINE_FILE } from './baseline.js';
 import { buildReport, renderText, renderSarif, exitCodeFor } from './report.js';
 import { suggest } from './suggest.js';
@@ -96,12 +94,7 @@ export async function main(argv) {
   const config = await loadConfig(root, opts.config);
   if (opts.failOn) config.failOn = opts.failOn;
 
-  const paths = await collectFiles(root, config);
-  const files = [];
-  for (const p of paths) {
-    const text = await readFile(path.join(root, p), 'utf8');
-    files.push({ path: p, text, tokens: countTokens(text), loadClass: loadClassFor(p) });
-  }
+  const files = await measureFiles(root, config);
 
   if (opts.verify) {
     const plan = await loadPlan(root, opts.verify);
