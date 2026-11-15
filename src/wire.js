@@ -119,6 +119,34 @@ function claude(context) {
   ];
 }
 
+// ---------------------------------------------------------------- Cursor
+
+// The spec glob `**/{CLAUDE,AGENTS}.md` is not valid YAML unquoted (a leading
+// `*` starts an alias), so the same files are listed the way Cursor writes
+// several globs itself: comma-separated, starting with a plain name.
+export const CURSOR_GLOBS = 'CLAUDE.md,AGENTS.md,**/CLAUDE.md,**/AGENTS.md';
+
+function cursorRule(context) {
+  const run = npx(context);
+  return `---
+description: Measure agent context files with ctxcap before and after editing them
+alwaysApply: false
+globs: ${CURSOR_GLOBS}
+---
+
+${MANAGED_MD}
+Before and after you edit this file, run \`${run} --json\` and report the token change.
+If the total is over budget, run \`${run} --plan --budget <n>\`, cut only the line ranges it lists, then run the \`${run} --verify <planId>\` it names.
+`;
+}
+
+function cursor(context) {
+  return [
+    { groups: ['cursor'], path: '.cursor/rules/ctxcap.mdc', kind: 'file', marker: MANAGED_MD, content: cursorRule(context) },
+    keyTarget({ groups: ['cursor'], path: '.cursor/mcp.json', section: 'mcpServers', name: 'ctxcap', value: mcpServer(context) })
+  ];
+}
+
 /**
  * A target is one of three kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
@@ -127,5 +155,5 @@ function claude(context) {
  * `groups` lists the agents the target belongs to.
  */
 export function targetsFor(context) {
-  return [...claude(context)];
+  return [...claude(context), ...cursor(context)];
 }

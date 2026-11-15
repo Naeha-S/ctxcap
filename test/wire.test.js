@@ -137,3 +137,29 @@ test('hook stop: silent under budget, one message for the user over it, never ex
   assert.equal(hook(dir, 'stop').status, 1);
   assert.equal(hook(dir, 'nonsense').status, 1);
 });
+
+// ------------------------------------------------------------------ Cursor
+
+test('cursor: the rule has valid YAML frontmatter that attaches to context files only', async () => {
+  const dir = await repo({ '.cursor/mcp.json': JSON.stringify({ mcpServers: { linear: { url: 'https://mcp.linear.app' } } }, null, 2) + '\n' });
+  assert.equal(cli(dir, 'init', '--yes', '--agents', 'cursor').status, 0);
+  const files = await tree(dir);
+  assert.deepEqual(Object.keys(files).sort(), ['.cursor/mcp.json', '.cursor/rules/ctxcap.mdc']);
+
+  const { data, body } = frontmatter(files['.cursor/rules/ctxcap.mdc']);
+  assert.deepEqual(Object.keys(data), ['description', 'alwaysApply', 'globs']);
+  assert.equal(typeof data.description, 'string');
+  assert.equal(data.alwaysApply, false);
+  assert.deepEqual(data.globs.split(','), ['CLAUDE.md', 'AGENTS.md', '**/CLAUDE.md', '**/AGENTS.md']);
+  assert.ok(body.includes(`npx ctxcap@${VERSION} --json`));
+
+  const mcp = JSON.parse(files['.cursor/mcp.json']);
+  assert.deepEqual(mcp.mcpServers.linear, { url: 'https://mcp.linear.app' });
+
+  // Same server entry as Claude Code gets in .mcp.json.
+  const both = await repo();
+  cli(both, 'init', '--yes', '--agents', 'claude,cursor');
+  const wired = await tree(both);
+  assert.deepEqual(JSON.parse(wired['.cursor/mcp.json']), JSON.parse(wired['.mcp.json']));
+  assert.deepEqual(mcp.mcpServers.ctxcap, JSON.parse(wired['.mcp.json']).mcpServers.ctxcap);
+});
