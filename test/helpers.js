@@ -18,6 +18,9 @@ export async function repo(files = {}, { remote = 'https://github.com/acme/widge
     await writeFile(path.join(dir, file), content);
   }
   git(dir, 'init', '-q');
+  // Git for Windows defaults to core.autocrlf=true, which makes `git apply`
+  // and checkouts write CRLF. The fixtures state their line endings exactly.
+  git(dir, 'config', 'core.autocrlf', 'false');
   if (remote) git(dir, 'remote', 'add', 'origin', remote);
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '--allow-empty', '-m', 'fixture');
