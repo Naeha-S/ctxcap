@@ -205,7 +205,124 @@ test('apply prepares all files before renaming any file', async () => {
 
 test('planId changes when condensed replacement text changes', async () => {
   const data = await fixtureFromDirectory('survivable-condense');
-  const short = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 280 });
+  const short = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 200 });
   const long = await makePlan({ ...data, config: { ignore: [] }, budget: 1, maxCondenseChars: 320 });
   assert.notEqual(short.planId, long.planId);
+});
+
+async function inlineFixture(text) {
+  const root = await mkdtemp(path.join(tmpdir(), 'ctxcap-inline-'));
+  await writeFile(path.join(root, 'AGENTS.md'), text);
+  return { root, files: [{ path: 'AGENTS.md', text, tokens: countTokens(text) }] };
+}
+
+const FILLER = 'The deploy pipeline builds the image, runs the unit suite, and waits for the smoke checks before promoting. ';
+
+test('condense keeps a rule that sits mid-paragraph and verify accepts the result', async () => {
+  const rule = 'Whatever happens, NEVER run the migration job against production without a snapshot.';
+  const data = await inlineFixture(`# Deploy\n\n${FILLER}${'Each stage reports its own status to the channel. '.repeat(40)}${rule}\n`);
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 100, apply: true });
+  const finding = plan.plan.find((entry) => entry.action === 'condense');
+  assert.ok(finding);
+  assert.equal(finding.loadBearing, true);
+  assert.ok(finding.condensedText.endsWith(rule));
+  assert.equal(plan.satisfiable, true);
+  assert.match(await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'), /NEVER run the migration job/);
+  const verified = await verifyPlan(plan, data.root);
+  assert.deepEqual(verified.violations, []);
+  assert.equal(verified.satisfied, true);
+});
+
+test('verify reports a violation when a hand trim drops a rule sentence', async () => {
+  const rule = 'Agents must never force-push to the release branch.';
+  const data = await inlineFixture(`# Deploy\n\n${FILLER}${'Each stage reports its own status to the channel. '.repeat(40)}${rule}\n`);
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 100 });
+  assert.ok(plan.plan[0].condensedText.includes(rule));
+  await writeFile(path.join(data.root, 'AGENTS.md'), `# Deploy\n\n${FILLER.trim()}\n`);
+  const verified = await verifyPlan(plan, data.root);
+  assert.deepEqual(verified.violations.map((violation) => violation.text), [rule]);
+  assert.equal(verified.satisfied, false);
+});
+
+test('condense is skipped when it would have to cut mid-sentence', async () => {
+  const data = await inlineFixture(`# Notes\n\n${'this clause keeps going without ever reaching a full stop, '.repeat(60)}\n`);
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.deepEqual(plan.plan, []);
+});
+
+test('a stale block is not deleted when it carries a rule mid-paragraph', async () => {
+  const data = await inlineFixture('# Helpers\n\nUse `src/old-helpers.js` for shared utilities when writing new modules in this repository. Whatever the task, NEVER commit credentials or tokens to this repository.\n');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.deepEqual(plan.plan, []);
+  assert.ok(plan.preserve.some((span) => span.startLine === 3));
+});
+
+test('a heading directly above its body ends the previous preserve section', async () => {
+  const data = await inlineFixture('# Never\nPush to main.\n\n# Cleanup\nGeneral housekeeping notes live here.\n');
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.deepEqual(plan.preserve.map((span) => span.startLine), [1]);
+});
+
+test('a stale block is not deleted when it carries a lowercase mid-sentence rule', async () => {
+  const data = await inlineFixture('# Helpers\n\nUse `src/old-helpers.js` for shared utilities when writing new modules in this repository, and agents must never commit credentials here.\n');
+  await mkdir(path.join(data.root, 'src'));
+  for (const strictPreserve of [false, true]) {
+    const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1, strictPreserve });
+    assert.deepEqual(plan.plan, []);
+  }
+});
+
+test('a stale reference removes only its own list item, once', async () => {
+  const text = [
+    '# Layout',
+    '',
+    '- Helpers live in `src/gone-one.js` and `src/gone-two.js`, which every new module in this repository should import first.',
+    '  They are shared across all packages in the workspace.',
+    '- Tests live next to the code they cover.',
+    '- Generated output is written to the build directory.',
+    '',
+    'Closing paragraph.'
+  ].join('\n');
+  const data = await inlineFixture(text);
+  await mkdir(path.join(data.root, 'src'));
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1, apply: true });
+  assert.deepEqual(plan.plan.map((finding) => [finding.startLine, finding.endLine]), [[3, 4]]);
+  assert.equal(
+    await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'),
+    text.split('\n').filter((_, index) => index !== 2 && index !== 3).join('\n')
+  );
+});
+
+test('apply refuses overlapping line ranges', async () => {
+  const data = await inlineFixture('one\ntwo\nthree\nfour\n');
+  const plan = {
+    planId: 'overlap',
+    plan: [
+      { id: 'a', file: 'AGENTS.md', startLine: 1, endLine: 2, action: 'delete' },
+      { id: 'b', file: 'AGENTS.md', startLine: 1, endLine: 2, action: 'delete' }
+    ],
+    _internal: { postHashes: {} }
+  };
+  const result = await applyPlan(plan, data.root);
+  assert.deepEqual(result.applied, []);
+  assert.equal(await readFile(path.join(data.root, 'AGENTS.md'), 'utf8'), 'one\ntwo\nthree\nfour\n');
+});
+
+test('lists, tables, and code are never condensed or deduplicated', async () => {
+  const item = '- This list item explains one part of the layout in enough words to matter to a reader.\n';
+  const code = '```bash\nnpm ci && npm test -- --runInBand --coverage --reporters=default --reporters=summary\n\nnpm run lint -- --max-warnings 0 --cache --cache-location .cache/eslint --ext .js,.ts,.tsx\n```\n';
+  const data = await inlineFixture(`# Layout\n\n${item.repeat(40)}\n## Run\n\n${code}\n## Again\n\n${code}`);
+  await writeFile(path.join(data.root, 'package.json'), JSON.stringify({ scripts: { lint: 'x' } }));
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  assert.deepEqual(plan.plan, []);
+});
+
+test('condense leaves a heading that sits directly on its paragraph in place', async () => {
+  const data = await inlineFixture(`## Deploy\n${FILLER}${'Each stage reports its own status to the channel. '.repeat(40)}Stages run in order (e.g. build first). Then they stop.\n`);
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1, apply: true });
+  assert.deepEqual([plan.plan[0].startLine, plan.plan[0].endLine], [2, 2]);
+  const lines = (await readFile(path.join(data.root, 'AGENTS.md'), 'utf8')).split('\n');
+  assert.equal(lines[0], '## Deploy');
+  assert.doesNotMatch(lines[1], /e\.g\.$/);
+  assert.match(lines[1], /\.$/);
 });

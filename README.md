@@ -27,12 +27,14 @@ npx ctxcap --verify <planId>                  # catch drift and violations
 Three rules for the agent:
 
 1. Splice by `startLine`/`endLine`. Never rewrite a file from scratch.
-2. Never cut a span listed in `preserve`.
+2. Never cut a span listed in `preserve`. The one exception is a `condense`
+   finding on that span: apply its `condensedText` exactly as given.
 3. If `satisfiable` is false, report `minAchievable` and stop.
 
 Verification is a guardrail, not a semantic proof. It checks whether planned
-source text was removed, whether applied files drifted, and whether recorded
-preserve text remains. It cannot tell whether a replacement still means the
+source text was removed, whether applied files drifted, whether recorded
+preserve text remains, and whether every rule sentence of a condensed
+paragraph is still present. It cannot tell whether a replacement still means the
 same thing or whether an unmarked instruction was important. Review the diff
 and the surrounding scope, exceptions, and qualifiers before accepting a trim.
 
@@ -56,29 +58,32 @@ Agents can fetch the five-line loop from [`llms.txt`](llms.txt).
 
 [`examples/case-study/`](examples/case-study/) contains a reproducible
 multi-file run. It starts with 1,504 tokens (1,473 startup-loaded and 31
-always-loaded), applies plan `0015f7` at budget 400, and finishes at 259
-tokens. The plan's `minAchievable` is 259, two condenses apply, and the
-preserve span in `CLAUDE.md` survives verification with zero missed findings
-or violations.
+always-loaded), applies plan `6b8e55` at budget 400, and finishes at 228
+tokens. The plan's `minAchievable` is 228 and two condenses apply. One of them
+is on a load-bearing paragraph in `AGENTS.md`: its replacement keeps the
+`Do not silently drop a requirement` sentence. The preserve span in
+`CLAUDE.md` is untouched, and verification reports zero missed findings or
+violations.
 
 The committed [`before.json`](examples/case-study/before.json),
 [`plan.json`](examples/case-study/plan.json), [`apply.json`](examples/case-study/apply.json),
 [`apply.diff`](examples/case-study/apply.diff), [`verify.json`](examples/case-study/verify.json),
-and [`after.json`](examples/case-study/after.json) show every number. Re-run
-the commands below from the repository root to reproduce it:
+and [`after.json`](examples/case-study/after.json) show every number. The
+context files in that directory are committed in their "before" state. Re-run
+the commands below from the repository root to reproduce it, then restore the
+files with `git checkout examples/case-study`:
 
 ```bash
 npx ctxcap --json --root examples/case-study
 npx ctxcap --plan --budget 400 --root examples/case-study
 npx ctxcap --plan --budget 400 --apply --root examples/case-study
-npx ctxcap --verify 0015f7 --root examples/case-study
+npx ctxcap --verify 6b8e55 --root examples/case-study
 ```
 
-Measured correction: the first condensed candidate was bounded at a sentence
-boundary and verification confirmed both replacements rather than trusting
-shifted line numbers. The 1,245-token reduction is useful because the
-remaining 259 tokens include the preserve rule that prevents repeating the
-release investigation.
+Both replacements end at sentence boundaries, and verification confirmed them
+by content rather than trusting shifted line numbers. The 1,276-token
+reduction is useful because the remaining 228 tokens still include both rules:
+the `Do not` sentence in `AGENTS.md` and the `# Never` rule in `CLAUDE.md`.
 
 Context can be stale as well as large. Run the dead-reference pass to find
 paths, commands, globs, and `@path`/`#path` references that no longer resolve:
@@ -91,10 +96,25 @@ It reports reclaimable tokens and emits inline SARIF annotations with
 `--sarif`. Use `--fail-on stale` to gate CI, or `--stale-fix` to print a
 deletion diff without modifying files.
 
-The stale pass skips fenced code blocks and suspicious tokens containing `~`,
-`$`, `://`, or `<`. Add `<!-- ctxcap-ignore -->` to a line to suppress that
-line. `--stale-fix` prints a deletion diff; there is deliberately no
-`--stale --apply` mode.
+The stale pass prefers silence to guessing. It only checks references that are
+spelled like a path into this repository:
+
+- with a slash, the first segment must be an existing directory (`src/gone.js`
+  is checked; `origin/main`, `feat/x`, and `@scope/pkg` are not);
+- without a slash, the name must end in a known file extension and exist
+  nowhere in the repository (`gone.config.ts` is checked; `console.log` and
+  `1.2.3` are not);
+- `npm run <script>` must be a script in some `package.json` in the repository.
+
+Paths resolve against the repository root and the context file's own
+directory. Fenced code blocks, commands, absolute paths, `../` paths, URLs, and
+anything containing `~`, `$`, `:`, or `<` are skipped. Each finding names the
+dead reference in `ref` and the lines it would remove in `startLine`/`endLine`:
+the list item that holds the reference, or the paragraph when it is not in a
+list. Add `<!-- ctxcap-ignore -->` to a line to suppress it.
+
+`--stale-fix` prints a deletion diff and leaves out blocks that also hold a
+rule; fix those by hand. There is deliberately no `--stale --apply` mode.
 
 ## Why
 
@@ -120,10 +140,6 @@ for each topic and prune or archive short-lived TODOs and notes.
 No baseline, stale-reference pass, ranked plan, verify step, SARIF, or MCP surface there. If you want per-turn nudges inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
 
 ## Install
-
-These commands use the latest version published to npm. Publish `ctxcap@1.3.0`
-before using the `--stale` or `--plan` features below; the previously published
-`1.2.0` does not include them.
 
 ```bash
 npm i -D ctxcap
@@ -152,15 +168,15 @@ Use the pinned version in release checks or reproducible CI. For a real edit
 loop, review the plan, apply it, then verify the saved plan:
 
 ```bash
-npx -y ctxcap@1.3.0 --plan --budget 40000
-npx -y ctxcap@1.3.0 --plan --budget 40000 --apply
-npx -y ctxcap@1.3.0 --verify <planId>
+npx -y ctxcap@1.4.0 --plan --budget 40000
+npx -y ctxcap@1.4.0 --plan --budget 40000 --apply
+npx -y ctxcap@1.4.0 --verify <planId>
 ```
 
 Start with a baseline when you want pull requests to report growth:
 
 ```bash
-npx -y ctxcap@1.3.0 --update-baseline
+npx -y ctxcap@1.4.0 --update-baseline
 git add ctxcap-baseline.json
 git commit -m "Add ctxcap baseline"
 ```
@@ -217,8 +233,14 @@ Reports include `totalByClass` for `always`, `startup`, `conditional`, and
 `manual` files. `total` remains for compatibility and is the sum of all
 classes; the `--budget` gate applies only to always and startup files.
 Condense findings report net `tokensFreed`, `replacementTokens`, and a score.
-Their replacements end at sentence or clause boundaries rather than a fixed
-character truncation. Plan output uses schema `ctxcap/plan/v2`.
+A replacement is built from whole sentences: the leading ones that fit
+`--max-condense-chars`, plus every sentence containing `must`, `never`,
+`always`, `do not`, or `don't`. Repeated sentences are dropped. Under a
+preserve heading or `<!-- ctxcap:preserve -->` marker only repeated sentences
+are dropped. Only prose paragraphs are condensed; lists, tables, quotes, and
+code are left alone, and a paragraph that cannot be shortened this way gets no
+condense finding. A delete finding is never offered for a block that holds
+one of those rule words. Plan output uses schema `ctxcap/plan/v2`.
 
 **Defaults** (when no config exists): scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `prompts/**`, `*.prompt`, `.cursor/rules/**`.
 
@@ -237,7 +259,7 @@ steps:
     with: { fail-on: increase }
 ```
 
-**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.3.0`
+**Pinned form for reproducibility:** `uses: Naeha-S/ctxcap@v1.4.0`
 
 Inputs:
 
@@ -250,6 +272,12 @@ Inputs:
 | `upload-sarif` | `true` | Upload SARIF to code scanning |
 | `stale` | `false` | Run the stale-reference pass |
 | `stale-glob` | `false` | Include zero-match globs |
+
+`fail-on: increase` compares against the baseline at the merge base. A pull
+request that grows a context file on purpose passes when it also commits the
+refreshed baseline (`npx ctxcap --update-baseline`); the baseline diff is what
+the reviewer approves. The first pull request that adds the action passes the
+same way.
 
 **What you get on every run:**
 - Workflow annotations on over-budget files
@@ -332,10 +360,12 @@ summary.
 
 ## Accuracy
 
-Counts, `tokensFreed`, and `confidence` use heuristics and are approximate
-against Claude and Gemini (±5% for token counts). Every report carries
-`"approximate": true` and the tokenizer ID. Compare **deltas**, not absolutes;
-review the plan before applying it.
+Token counts use OpenAI's `o200k_base` encoding. They match GPT-4o-family
+models and are an estimate for everything else: Claude and Gemini tokenize
+differently, and the gap has not been measured here. Every report carries
+`"approximate": true` and the tokenizer ID. Compare **deltas**, not absolutes.
+`confidence` is a fixed heuristic per finding kind; review the plan before
+applying it.
 
 ## Packages
 
@@ -344,24 +374,6 @@ review the plan before applying it.
 | [`ctxcap`](https://www.npmjs.com/package/ctxcap) | CLI + GitHub Action + embedded MCP server |
 | [`ctxcap-mcp`](https://www.npmjs.com/package/ctxcap-mcp) | Standalone MCP server wrapper (thin bin, pulls ctxcap as a dep) |
 
-## Publish and share
-
-The packages are published on npm:
-
-```bash
-npm view ctxcap version       # 1.3.0
-npm view ctxcap-mcp version   # 0.1.6
-```
-
-Share the npm packages, the GitHub repository, or the pinned GitHub Action:
-
-- CLI: `npx -y ctxcap@1.3.0`
-- MCP: `npx -y ctxcap-mcp@0.1.6`
-- Action: `Naeha-S/ctxcap@v1.3.0`
-- Repository: <https://github.com/Naeha-S/ctxcap>
-
-For a release post, show a real before/after from another repository, include
-the plan and verification loop, and link to the cold-install results. Ask
-early users to report false positives from their context-file layouts.
+## License
 
 MIT.

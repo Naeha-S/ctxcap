@@ -5,3 +5,4 @@ ctxcap.sarif
 tokenlint-report.json
 tokenlint.sarif
 .ctxcap/
+*.tgz

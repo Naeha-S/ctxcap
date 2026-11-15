@@ -19,7 +19,8 @@ references, duplicates instructions, or causes context-window pressure.
 5. On a clean working tree, apply with
    `npx ctxcap --plan --budget <n> --apply`.
 6. Apply entries by `startLine`/`endLine`; never rewrite a context file and
-   never cut a span listed in `preserve`.
+   never cut a span listed in `preserve`, except by applying a `condense`
+   finding's `condensedText` exactly as given.
 7. Verify with `npx ctxcap --verify <planId>` and do not consider the budget
    met until `satisfied` is true.
 

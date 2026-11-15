@@ -12,10 +12,10 @@ repository search.
 4. `package-lock.json` — regenerate with `npm install --package-lock-only`;
    never edit the resolved package integrity by hand.
 5. `src/version.js` — no literal version is needed; it reads `package.json`.
-6. `README.md`, `NEXT_STEPS.md`, and `DISCOVERY.md` — update pinned npm,
-   MCP, and GitHub Action examples.
-7. `.github/workflows/ctxcap.yml` and release examples — update pinned
-   `Naeha-S/ctxcap@vX.Y.Z`; keep `@v1` only as the moving major alias.
+6. `README.md` — update pinned npm, MCP, and GitHub Action examples.
+7. Release examples — update pinned `Naeha-S/ctxcap@vX.Y.Z`; keep `@v1` only
+   as the moving major alias. The repository's own workflow runs the action
+   from the checkout (`uses: ./`) and needs no change.
 8. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
 
 ## Required checks

@@ -1,4 +1,4 @@
-﻿{
+{
   "schema": "ctxcap/v1",
   "approximate": true,
   "tokenizer": "gpt-tokenizer@3.0.1",
@@ -11,6 +11,7 @@
   "delta": 1504,
   "over": false,
   "baselineFound": false,
+  "acknowledged": false,
   "files": [
     {
       "path": "AGENTS.md",

@@ -23,3 +23,8 @@ test('escapes newlines', () => {
 test('summary lists changed files', () => {
   assert.ok(summary(report).includes('| `prompts/a,b:c.md` | 300 | +50 |'));
 });
+
+test('total budget warning counts only always- and startup-loaded files', () => {
+  const out = annotations({ total: 900, totalBudget: 200, totalByClass: { startup: 150, manual: 750 }, files: [], findings: [] });
+  assert.deepEqual(out, []);
+});

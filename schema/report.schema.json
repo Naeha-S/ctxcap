@@ -13,6 +13,7 @@
     "delta": { "type": "integer" },
     "over": { "type": "boolean" },
     "baselineFound": { "type": "boolean" },
+    "acknowledged": { "type": "boolean" },
     "files": {
       "type": "array",
       "items": {
@@ -44,6 +45,9 @@
           "severity": { "enum": ["error", "warning"] },
           "path": { "type": "string" },
           "line": { "type": "integer", "minimum": 1 },
+          "ref": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 },
           "text": { "type": "string" },
           "reclaimableTokens": { "type": "integer", "minimum": 0 },
           "fix": { "const": "delete" }
