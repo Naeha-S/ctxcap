@@ -1,5 +1,5 @@
 # ctxcap
-Offline context-file budget management for AI coding agents; no API key, network, or configuration.
-Use `npx -y ctxcap --json` for CLAUDE.md, AGENTS.md, Cursor rules, and prompt token usage and stale references.
-MCP: `npx -y ctxcap-mcp`; call `context_budget_plan`, splice by startLine/endLine, never cut preserve, then call verify.
-If satisfiable is false, report minAchievable and stop; measure deltas, not absolutes (counts are approximate +/-5%).
+Optional offline CLI for measuring context-file tokens and finding stale references.
+Run `npx -y ctxcap --json`; it needs no API key, network, telemetry, or configuration.
+Use `--plan --budget N` only when a ranked cleanup plan is useful; review edits before applying them.
+The MCP server is optional: `npx -y ctxcap-mcp`; counts are approximate (about +/-5%).

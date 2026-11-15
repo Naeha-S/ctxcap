@@ -30,6 +30,17 @@ Three rules for the agent:
 2. Never cut a span listed in `preserve`.
 3. If `satisfiable` is false, report `minAchievable` and stop.
 
+Verification is a guardrail, not a semantic proof. It checks whether planned
+source text was removed, whether applied files drifted, and whether recorded
+preserve text remains. It cannot tell whether a replacement still means the
+same thing or whether an unmarked instruction was important. Review the diff
+and the surrounding scope, exceptions, and qualifiers before accepting a trim.
+
+For higher-risk instructions, keep a small task-specific regression case that
+captures the failure the rule prevents and run it before and after trimming.
+`ctxcap` does not generate or evaluate these behavioral cases; each repository
+needs its own way to check expected behavior.
+
 ### Where plans live
 
 CLI plans are written to `.ctxcap/plans/<planId>.json`. Add `.ctxcap/` to
@@ -73,7 +84,7 @@ Context can be stale as well as large. Run the dead-reference pass to find
 paths, commands, globs, and `@path`/`#path` references that no longer resolve:
 
 ```bash
-npx -y ctxcap --stale --json
+npx ctxcap --stale --json
 ```
 
 It reports reclaimable tokens and emits inline SARIF annotations with
@@ -91,6 +102,17 @@ Agent context files — `CLAUDE.md`, `AGENTS.md`, `prompts/**`, `.cursor/rules/`
 
 `ctxcap` fixes that: it measures context files, tracks token deltas against a committed baseline, finds stale references, produces ranked plans, verifies edits, fails CI when you define a budget, and exposes an MCP server so agents can check themselves.
 
+It is for maintainers who already use repository-level agent context and want
+repeatable measurements and reviewable trim plans. It does not decide which
+instructions are valuable. Keep durable behavior rules and non-inferable
+landmines in always-loaded files; move task decisions and their rationale to
+issues, ADRs, or PRs, and detailed repo facts to focused docs or manifests
+that agents can load when relevant. Prefer actionable instructions, and leave
+general style rules to linters when they can enforce them. A useful review
+question is: could an agent infer this from the repository, build scripts, or
+linters? If so, it may not need always-loaded space. Keep one source of truth
+for each topic and prune or archive short-lived TODOs and notes.
+
 ## How this differs from `tokenlint`
 
 `tokenlint` hooks your editor and reminds you per turn about wasteful habits. `ctxcap` gates the repo: it measures context files against a committed baseline, reports the delta on every PR, and fails only when you ask it to. Different layer — CI and review, not keystrokes.
@@ -98,6 +120,10 @@ Agent context files — `CLAUDE.md`, `AGENTS.md`, `prompts/**`, `.cursor/rules/`
 No baseline, stale-reference pass, ranked plan, verify step, SARIF, or MCP surface there. If you want per-turn nudges inside Claude Code, use theirs; if you want a gate on `prompts/**`, use this.
 
 ## Install
+
+These commands use the latest version published to npm. Publish `ctxcap@1.3.0`
+before using the `--stale` or `--plan` features below; the previously published
+`1.2.0` does not include them.
 
 ```bash
 npm i -D ctxcap
@@ -107,7 +133,7 @@ npx ctxcap --update-baseline
 Or run without installing:
 
 ```bash
-npx -y ctxcap --json
+npx ctxcap --json
 ```
 
 ## Test another repository

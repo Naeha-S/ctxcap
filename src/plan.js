@@ -45,15 +45,22 @@ function paragraphSpans(file) {
 
 function classifySpan(span, file, config = {}) {
   const lines = file.text.split('\n');
-  const before = lines.slice(0, span.start - 1).reverse().find((line) => line.trim());
-  const headingText = before?.trim().replace(/^#{1,6}\s+/, '');
   const headingPatterns = config.preserveHeadings ?? ['Never', 'Constraint', 'Constraints', 'Must', 'Rule', 'Rules'];
-  const heading = headingText && headingPatterns.some((source) => {
-    try { return new RegExp(`^${source}$`, 'i').test(headingText); } catch { return false; }
-  });
+  let protectedHeadingLevel = null;
+  for (const line of lines.slice(0, span.start - 1)) {
+    const match = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (!match) continue;
+    const level = match[1].length;
+    if (protectedHeadingLevel !== null && level <= protectedHeadingLevel) protectedHeadingLevel = null;
+    const headingText = match[2].trim();
+    const protectedHeading = headingPatterns.some((source) => {
+      try { return new RegExp(`^${source}$`, 'i').test(headingText); } catch { return false; }
+    });
+    if (protectedHeading) protectedHeadingLevel = level;
+  }
   const text = span.lines.join('\n');
   const marker = lines.slice(0, span.start - 1).reverse().find((line) => line.trim())?.trim() === '<!-- ctxcap:preserve -->';
-  return { loadBearing: Boolean(heading || marker || LOAD_BEARING.test(text)), text };
+  return { loadBearing: Boolean(protectedHeadingLevel !== null || marker || LOAD_BEARING.test(text)), text };
 }
 
 function preserveSpans(files, config) {
