@@ -12,6 +12,8 @@ repository search.
 4. `package-lock.json` — regenerate with `npm install --package-lock-only`;
    never edit the resolved package integrity by hand.
 5. `src/version.js` — no literal version is needed; it reads `package.json`.
+   `.claude-plugin/plugin.json` — update the plugin `version`; a test fails
+   when it differs from `package.json`.
 6. `README.md` — update pinned npm, MCP, and GitHub Action examples.
 7. Release examples — update pinned `Naeha-S/ctxcap@vX.Y.Z`; keep `@v1` only
    as the moving major alias. The repository's own workflow runs the action

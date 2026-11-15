@@ -232,9 +232,28 @@ npx ctxcap --verify 6b8e55 --root examples/case-study
 git checkout examples/case-study    # restore
 ```
 
-## MCP server
+## Use it from a coding agent
 
-The same measure, plan, and verify steps are available to agents over MCP:
+Agents do not go looking for tools. They use what is installed, and what the
+repository tells them to run. There are three ways to give them `ctxcap`.
+
+**As a skill.** The agent loads it only when you ask about context size or
+stale references, and it runs the CLI with `npx`. Nothing is added to the
+context window until then.
+
+```bash
+# Claude Code
+claude plugin install ctxcap --marketplace Naeha-S/ctxcap
+
+# Claude Code, Cursor, Codex, and other agents that read SKILL.md
+npx skills add Naeha-S/ctxcap
+```
+
+Then ask "how many tokens do my context files cost?" or "is AGENTS.md stale?".
+
+**As an MCP server.** The same measure, plan, and verify steps as tools:
+
+[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=ctxcap&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsImN0eGNhcC1tY3AiXX0%3D)
 
 ```json
 {
@@ -247,8 +266,8 @@ The same measure, plan, and verify steps are available to agents over MCP:
 }
 ```
 
-For Claude Code: `claude mcp add ctxcap -- npx -y ctxcap-mcp`. Codex and
-Cursor setup is in the [MCP package guide](packages/ctxcap-mcp/README.md).
+For Claude Code: `claude mcp add ctxcap -- npx -y ctxcap-mcp`. Codex setup is
+in the [MCP package guide](packages/ctxcap-mcp/README.md).
 
 | Tool | Description |
 | --- | --- |
@@ -262,6 +281,13 @@ network calls. It never edits files: the agent applies the plan and then calls
 verify. Plans are saved under `.ctxcap/plans/`, so verify also works in a later
 session. It is tested with the official MCP SDK client. Use `ctxcap-mcp` 0.1.7
 or newer; earlier versions do not connect.
+
+**As a line in `AGENTS.md`.** Agents read this file at the start of a session,
+so one line is enough:
+
+```markdown
+- Before editing AGENTS.md or CLAUDE.md, run `npx -y ctxcap --stale --json` and keep the total from growing.
+```
 
 ## CLI
 
