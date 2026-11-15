@@ -158,13 +158,13 @@ async function survey({ root, version = VERSION, pin = true, targets }) {
   const items = [];
   for (const target of list) {
     const before = await read(root, target.path);
-    items.push({ target, before, ...inspect(target, before) });
+    items.push({ target, before, ...(target.kind === 'state' ? { state: 'state', pins: [] } : inspect(target, before)) });
   }
   return { context, items };
 }
 
 const groupState = (items, group, { exclusive = false } = {}) => {
-  const own = items.filter((item) => item.target.groups.includes(group) && (!exclusive || item.target.groups.length === 1));
+  const own = items.filter((item) => item.state !== 'state' && item.target.groups.includes(group) && (!exclusive || item.target.groups.length === 1));
   if (own.every((item) => item.state === 'absent')) return 'not wired';
   if (own.some((item) => item.state === 'absent' || item.state === 'invalid')) return 'partially wired';
   return 'wired';
@@ -183,11 +183,15 @@ export async function planInit({ root, groups = GROUPS, remove = false, force = 
     if (!target.groups.some((group) => groups.includes(group))) continue;
     const step = { path: target.path, before, after: before, action: 'unchanged', reason: '' };
 
+    // Working state (the hook stamp) is never written by init, only cleared by remove.
+    if (state === 'state' && !(remove && before !== null)) continue;
+
     if (remove) {
       // A file shared by two agents stays while the other one still needs it.
       const needed = target.groups.some((group) => !groups.includes(group) && groupState(items, group, { exclusive: true }) !== 'not wired');
       if (state === 'absent' || needed) continue;
-      if (state !== 'managed') Object.assign(step, { action: 'leave', reason: 'not written by ctxcap init' });
+      if (state === 'state') Object.assign(step, { after: null, action: 'delete' });
+      else if (state !== 'managed') Object.assign(step, { action: 'leave', reason: 'not written by ctxcap init' });
       else {
         step.after = unwired(target, before);
         step.action = step.after === null ? 'delete' : 'write';

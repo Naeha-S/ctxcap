@@ -115,7 +115,8 @@ function claude(context) {
     }),
     keyTarget({ groups: ['claude'], path: '.mcp.json', section: 'mcpServers', name: 'ctxcap', value: mcpServer(context) }),
     // The hook keeps a stamp here and plans are saved here; none of it is source.
-    { groups: ['claude'], path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n` }
+    { groups: ['claude'], path: '.ctxcap/.gitignore', kind: 'file', marker: MANAGED_HASH, content: `${MANAGED_HASH}\n*\n!.gitignore\n!badge.json\n` },
+    { groups: ['claude'], path: '.ctxcap/stamp', kind: 'state' }
   ];
 }
 
@@ -203,10 +204,11 @@ const ci = (context) => [
 ];
 
 /**
- * A target is one of three kinds:
+ * A target is one of four kinds:
  *   file  - a whole file ctxcap owns: { path, kind, content, marker }
  *   block - a fenced block in a Markdown file: { path, kind, lines, place }
  *   json  - keys merged into a JSON file: { path, kind, present, add, strip }
+ *   state - working state init never writes and remove clears: { path, kind }
  * `groups` lists the agents the target belongs to.
  */
 export function targetsFor(context) {
