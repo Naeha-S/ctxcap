@@ -13,6 +13,7 @@ const HELP = `ctxcap — token budget linter for context files
 
 Usage: ctxcap [options]
        ctxcap init [--yes] [--print] [--agents <list>] [--remove] [--no-pin] [--force]
+       ctxcap doctor [--json]
 
   --json              machine-readable report on stdout
   --sarif             SARIF 2.1.0 on stdout
@@ -37,6 +38,7 @@ Usage: ctxcap [options]
 
 init wires ctxcap into the coding agents a repository uses. It prints a diff
 and writes nothing without --yes. Run ctxcap init --help for its flags.
+doctor reports whether that wiring is complete and pinned to this version.
 
 Exit: 0 clean, 1 breach under --fail-on, 2 internal error.
 No network. No telemetry. No API key.`;

@@ -229,6 +229,78 @@ export const renderDiff = (steps) => steps
   .map((step) => unifiedDiff(step.path, step.before, step.after))
   .join('');
 
+// ---------------------------------------------------------------- doctor
+
+/**
+ * Reports, per agent, whether its wiring is complete and pinned to `version`.
+ * `ok` is false when any agent is partially wired or carries a stale pin.
+ */
+export async function doctor({ root, version = VERSION, targets }) {
+  const { items } = await survey({ root, version, targets });
+  const agents = GROUPS.map((agent) => {
+    const files = items
+      .filter((item) => item.state !== 'state' && item.target.groups.includes(agent))
+      .map((item) => {
+        const stale = item.pins.find((pin) => pin !== version);
+        const state = item.state === 'absent' ? 'missing'
+          : item.state === 'managed' ? (stale ? 'stale' : 'wired')
+          : item.state;
+        return { path: item.target.path, state, ...(stale ? { pin: stale } : {}) };
+      });
+    const present = files.filter((file) => file.state !== 'missing' && file.state !== 'invalid');
+    const status = present.length === 0 && files.every((file) => file.state === 'missing') ? 'not wired'
+      : present.length < files.length ? 'partially wired'
+      : files.some((file) => file.state === 'stale') ? 'stale pin'
+      : 'wired';
+    return { agent, status, files };
+  });
+  return { version, ok: agents.every((entry) => entry.status === 'wired' || entry.status === 'not wired'), agents };
+}
+
+function describe(entry, version) {
+  const paths = (state) => entry.files.filter((file) => file.state === state).map((file) => file.path);
+  if (entry.status === 'partially wired') {
+    const parts = [];
+    if (paths('missing').length) parts.push(`missing ${paths('missing').join(', ')}`);
+    if (paths('invalid').length) parts.push(`not valid JSON: ${paths('invalid').join(', ')}`);
+    return parts.join('; ');
+  }
+  if (entry.status === 'stale pin') {
+    return entry.files.filter((file) => file.state === 'stale').map((file) => `${file.path} has ${file.pin}`).join(', ') + `, current is ${version}`;
+  }
+  const custom = paths('custom');
+  return custom.length ? `${custom.join(', ')} not written by ctxcap init` : '';
+}
+
+const DOCTOR_HELP = `ctxcap doctor — check the wiring ctxcap init wrote
+
+Usage: ctxcap doctor [--json] [--root <path>]
+
+Reports each agent as wired, not wired, partially wired, or stale pin.
+Exit: 0 fine, 1 when an agent is partially wired or pinned to another version.`;
+
+export async function doctorCli(argv, { version = VERSION } = {}) {
+  let json = false;
+  let root = '.';
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--json') json = true;
+    else if (argv[i] === '--root' && i + 1 < argv.length) root = argv[++i];
+    else if (argv[i] === '--help' || argv[i] === '-h') { console.log(DOCTOR_HELP); return 0; }
+    else throw usage(`unknown argument: ${argv[i]}. Run ctxcap doctor --help`);
+  }
+  const result = await doctor({ root: path.resolve(root), version });
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else {
+    for (const entry of result.agents) {
+      const detail = describe(entry, version);
+      console.log(`${entry.agent.padEnd(9)}${entry.status}${detail ? `: ${detail}` : ''}`);
+    }
+    if (!result.ok) console.log(`\nfix: npx ctxcap@${version} init --yes --force`);
+    else if (result.agents.every((entry) => entry.status === 'not wired')) console.log(`\nwire it up: npx ctxcap@${version} init`);
+  }
+  return result.ok ? 0 : 1;
+}
+
 // ---------------------------------------------------------------- CLI
 
 function usage(message) {
