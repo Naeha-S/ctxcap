@@ -9,16 +9,16 @@ description: Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor
 Measure first. Trim only when the total is over budget.
 
 ```bash
-npx ctxcap@1.5.0 --json                        # tokens per context file
-npx ctxcap@1.5.0 --stale --json                # references that no longer resolve
+npx ctxcap@1.5.1 --json                        # tokens per context file
+npx ctxcap@1.5.1 --stale --json                # references that no longer resolve
 ```
 
 The loop:
 
 ```bash
-npx ctxcap@1.5.0 --plan --budget <n>           # ranked plan, JSON
-npx ctxcap@1.5.0 --plan --budget <n> --apply   # apply it
-npx ctxcap@1.5.0 --verify <planId>             # check what landed
+npx ctxcap@1.5.1 --plan --budget <n>           # ranked plan, JSON
+npx ctxcap@1.5.1 --plan --budget <n> --apply   # apply it
+npx ctxcap@1.5.1 --verify <planId>             # check what landed
 ```
 
 Three rules:

@@ -33,6 +33,15 @@ repository search.
    fail until that version and tag exist.
 11. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
 
+## Before publishing
+
+A published npm version cannot be replaced. If `npm view ctxcap version`
+already prints the version in `package.json`, that version is taken: anything
+merged since needs a new version number, starting again from step 1. The same
+goes for `ctxcap-mcp`.
+
+Publish from a commit where `npm test` passes, and tag that same commit.
+
 ## Required checks
 
 ```powershell

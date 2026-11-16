@@ -1,7 +1,7 @@
 {
   "schema": "ctxcap/plan/v2",
   "planId": "6b8e55",
-  "verifyCommand": "npx ctxcap@1.5.0 --verify 6b8e55 --root examples/case-study",
+  "verifyCommand": "npx ctxcap@1.5.1 --verify 6b8e55 --root examples/case-study",
   "satisfiable": true,
   "budget": 400,
   "current": 1504,
@@ -66,5 +66,5 @@
     "6b8e55:1"
   ],
   "missed": [],
-  "initHint": "npx ctxcap@1.5.0 init wires ctxcap into the coding agents this repository uses; it prints a diff and writes nothing without --yes"
+  "initHint": "npx ctxcap@1.5.1 init wires ctxcap into the coding agents this repository uses; it prints a diff and writes nothing without --yes"
 }

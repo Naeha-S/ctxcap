@@ -5,5 +5,5 @@ globs: CLAUDE.md,AGENTS.md,**/CLAUDE.md,**/AGENTS.md
 ---
 
 <!-- ctxcap:managed -->
-Before and after you edit this file, run `npx ctxcap@1.5.0 --json` and report the token change.
-If the total is over budget, run `npx ctxcap@1.5.0 --plan --budget <n>`, cut only the line ranges it lists, then run the `npx ctxcap@1.5.0 --verify <planId>` it names.
+Before and after you edit this file, run `npx ctxcap@1.5.1 --json` and report the token change.
+If the total is over budget, run `npx ctxcap@1.5.1 --plan --budget <n>`, cut only the line ranges it lists, then run the `npx ctxcap@1.5.1 --verify <planId>` it names.

@@ -45,7 +45,10 @@ use shows up in the code search rows, not in npm downloads.
 real Cursor window, signed in, with a model answering. The sandbox this work
 was done in has neither: no Anthropic credentials, no route to the API, and no
 desktop. Nothing below the next heading has been observed in a live session.
-Do not tag v1.5.0 until the two tables at the end are filled in.
+
+`ctxcap@1.5.0` was published and tagged on 2026-11-15 with the two tables at
+the end still empty. They are still worth filling in: until then, how Claude
+Code and Cursor react to the wiring is untested.
 
 ### What was run instead, with no model in the loop
 
@@ -65,26 +68,23 @@ of 500 in `.ctxcap.json`, and `ctxcap` 1.5.0 installed from the packed tarball.
 This shows the commands run as written and answer in the documented hook
 format. It does not show how Claude Code or Cursor reacts to them.
 
-### Setup, before 1.5.0 is on npm
+### Setup
 
-The wiring runs `npx ctxcap@1.5.0`. Installing the packed tarball into the
-throwaway repository makes that resolve locally, so the test does not have to
-wait for the release. This was checked: `npx -y ctxcap@1.5.0 --version`
-printed `1.5.0` while npm's latest was 1.4.0.
+Use the newest published version; the steps below write it as `<version>`.
 
 ```bash
-# in the ctxcap checkout
-npm pack                                      # ctxcap-1.5.0.tgz
-
-# the throwaway repository
 mkdir throwaway && cd throwaway && git init
 printf '# Throwaway\n' > README.md
 node -e "console.log('# Project rules\n\n' + 'Always run the tests before you commit, and keep every answer short. '.repeat(120))" > CLAUDE.md
 echo '{"budgets":{"total":500}}' > .ctxcap.json
-npm init -y && npm i -D /path/to/ctxcap-1.5.0.tgz
-npx ctxcap@1.5.0 init --yes
+npx ctxcap@<version> init --yes
 git add -A && git commit -m "wired"
 ```
+
+To test a version before it is published, run `npm pack` in the ctxcap
+checkout and `npm i -D /path/to/ctxcap-<version>.tgz` in the throwaway
+repository first. `npx ctxcap@<version>` then resolves to the local install.
+This was checked with 1.5.0 while npm's latest was 1.4.0.
 
 ### Claude Code
 
@@ -92,7 +92,7 @@ Start `claude` in the throwaway repository. Record the Claude Code version.
 
 | # | Do | Pass when | What happened |
 | --- | --- | --- | --- |
-| 1 | Type: `my CLAUDE.md is getting long` | Claude loads the `ctxcap` skill and runs `npx ctxcap@1.5.0 --json`, without being told the tool's name | not run |
+| 1 | Type: `my CLAUDE.md is getting long` | Claude loads the `ctxcap` skill and runs `npx ctxcap@<version> --json`, without being told the tool's name | not run |
 | 2 | Ask it to add one line to `README.md` | The edit lands. No hook message, no hook error | not run |
 | 3 | Ask it to add one line to `CLAUDE.md` | The edit lands and is not blocked or retried. Claude is told the new count (visible in the transcript view, or it mentions the number). The JSON is not shown as an error and not treated as a decision | not run |
 | 4 | Let that turn finish | One line appears for you: "ctxcap: context files are at ... tokens, over the 500 budget." The prompt comes back. Claude does not start working again by itself | not run |
@@ -109,10 +109,10 @@ Cursor version.
 
 | # | Do | Pass when | What happened |
 | --- | --- | --- | --- |
-| 1 | Open `CLAUDE.md` and ask the agent: `my CLAUDE.md is getting long` | The `ctxcap` rule is attached to the request, and the agent runs `npx ctxcap@1.5.0 --json` | not run |
+| 1 | Open `CLAUDE.md` and ask the agent: `my CLAUDE.md is getting long` | The `ctxcap` rule is attached to the request, and the agent runs `npx ctxcap@<version> --json` | not run |
 | 2 | Ask it to add one line to `CLAUDE.md` | It reports the token count before and after | not run |
 | 3 | Ask about `README.md` only, in a new chat | The rule is not attached | not run |
-| 4 | Optional: `npx ctxcap@1.5.0 init --yes --agents mcp`, then reload | The `ctxcap` server shows as connected with four tools | not run |
+| 4 | Optional: `npx ctxcap@<version> init --yes --agents mcp`, then reload | The `ctxcap` server shows as connected with four tools | not run |
 
 Cursor version: not run. Date: not run.
 
