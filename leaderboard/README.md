@@ -33,16 +33,23 @@ the previous month's `.json` file in this directory.
 
 ## The page
 
-`docs/index.html` is the public page, served by GitHub Pages at
-<https://naeha-s.github.io/ctxcap/>. It is built from the newest `.json` file
-here, with no network access:
+The public pages are served by GitHub Pages from `docs/`:
+
+- <https://naeha-s.github.io/ctxcap/> always shows the newest month.
+- <https://naeha-s.github.io/ctxcap/2026-11/> is the permanent page for one
+  month. Link to this form when citing a number; it stays after the next
+  month is published.
+
+They are built from the `.json` files here, with no network access:
 
 ```bash
 npm run leaderboard:page
 ```
 
-Run it after the crawler and commit both. A test fails when the page and the
-data disagree.
+Run it after the crawler and commit `docs/` with the data. A test fails when
+the pages and the data disagree. The pages load nothing from another host and
+contain no scripts. `docs/og.png` is the image shown when a link is shared; it
+carries no month or numbers, so it does not need rebuilding.
 
 ## How files are counted
 
