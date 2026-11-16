@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { page, site, SITE } from '../scripts/leaderboard-page.mjs';
+import { monthsIn, page, site, SITE } from '../scripts/leaderboard-page.mjs';
 import { committed } from './helpers.js';
 
 const row = (rank, repo, tokens, extra = {}) => ({ rank, repo, stars: 1000 - (rank ?? 500), path: 'AGENTS.md', sha: 'x', tokens, delta: 'new', ...extra });
@@ -18,16 +18,22 @@ const text = (html) => html.replace(/<style[\s\S]*?<\/style>/, '').replace(/<[^>
 
 test('leaderboard page: the committed site is what the data builds, one permanent page per month', async () => {
   const files = await site('leaderboard');
-  assert.ok('index.html' in files && '2026-11/index.html' in files);
+  // Written against whatever months are committed: the monthly workflow adds
+  // one, and this test must still pass on the commit it makes.
+  const months = (await monthsIn('leaderboard')).map((data) => data.month);
+  const newest = months.at(-1);
+  assert.ok(months.includes('2026-11'));
+  assert.deepEqual(Object.keys(files).sort(), ['.nojekyll', 'index.html', ...months.map((month) => `${month}/index.html`)].sort());
   for (const [file, content] of Object.entries(files)) {
     assert.equal(await committed(`docs/${file}`), content, `${file}: run \`npm run leaderboard:page\` and commit docs/`);
   }
-  // Both the root and the month page name the month page as the address to cite.
-  for (const file of ['index.html', '2026-11/index.html']) {
-    assert.ok(files[file].includes(`<link rel="canonical" href="${SITE}/2026-11/">`), file);
+  // A month page names itself as the address to cite, and the root names the newest month.
+  for (const month of months) {
+    assert.ok(files[`${month}/index.html`].includes(`<link rel="canonical" href="${SITE}/${month}/">`), month);
+    assert.ok(files[`${month}/index.html`].includes('<a href="../">'), month);
   }
-  assert.ok(files['index.html'].includes('<a href="2026-11/">'));
-  assert.ok(files['2026-11/index.html'].includes('<a href="../">'));
+  assert.ok(files['index.html'].includes(`<link rel="canonical" href="${SITE}/${newest}/">`));
+  assert.ok(files['index.html'].includes(`<a href="${newest}/">`));
   // The share image the pages point at exists and is a PNG.
   assert.deepEqual([...(await readFile('docs/og.png')).subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
   assert.ok(files['index.html'].includes(`<meta property="og:image" content="${SITE}/og.png">`));
