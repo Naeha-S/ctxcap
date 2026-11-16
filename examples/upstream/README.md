@@ -118,20 +118,14 @@ triggers the check.
 > Verified against `main` at the commit in this branch: delta 0, exit 0. With 30
 > lines added to `rust/crates/api/AGENTS.md`: `+480` on that file, exit 1.
 
-## Why these files are not on the branches yet
+## Branch status
 
-The GitHub token in this environment can create branches and push commits on
-`Naeha-S/ctxcap`, but writes to `Naeha-S/ECC` and `Naeha-S/claw-code` are
-refused with `403 Resource not accessible by integration` — for git push and for
-the contents API alike. So the changes are prepared here, verified, and need a
-push from a machine whose token covers the forks:
+The follow-ups are now pushed to both branches and the explanatory comments
+are posted:
 
-```bash
-gh repo clone Naeha-S/ECC ecc -- --branch ci/ctxcap-context-budget
-cd ecc && cp -r /path/to/ctxcap/examples/upstream/ECC/. .
-git add -A && git commit -m "ci: record the context baseline and widen the trigger paths"
-git push origin ci/ctxcap-context-budget
-```
+- [ECC #3943](https://github.com/affaan-m/ECC/pull/3943), commit `151d512e`
+- [claw-code #3392](https://github.com/ultraworkers/claw-code/pull/3392),
+  commit `1660f76c`
 
-Same for `claw-code` with `examples/upstream/claw-code/.`, then post the two
-comments above.
+The committed-baseline checks return delta 0 and exit 0. Their workflow runs
+may still need the upstream repository's normal first-time/action approval.
