@@ -147,10 +147,11 @@ export function datum({ month, date, results, reviews, source, checked, top }) {
 }
 
 export function markdown(data) {
+  const scanned = data.checked - data.totals.notScanned;
   const lines = [
     `# ${data.title}, ${data.month}`,
     '',
-    `${data.checked} repositories were scanned on their default branch. ${data.totals.findings} references failed to resolve. Each was read by hand: ${data.totals.verified} are defects, ${data.totals.excluded} are naming examples or alternatives.`,
+    `${data.checked} repositories were selected; ${scanned} were scanned on their default branch. ${data.totals.findings} references failed to resolve. Each was read by hand: ${data.totals.verified} are defects, ${data.totals.excluded} are naming examples or alternatives.`,
     ''
   ];
   if (!data.verified.length) {
