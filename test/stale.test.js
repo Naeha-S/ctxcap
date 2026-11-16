@@ -50,7 +50,8 @@ test('does not report identifiers, commands, routes, branches, or packages as pa
     '- Branch from `origin/main` as `feat/thing`; send `application/json` to `/api/users`.',
     '- Install `@scope/package` and see @someone or @types/node; activate `.venv/bin/activate`.',
     '- Run `pnpm --filter ./apps/web build` or `cd src && make`; docs live in `../docs/`.',
-    '- Each package has a `pyproject.toml`; releases use `release.yml`. Keep `.env.local` private.'
+    '- Each package has a `pyproject.toml`; releases use `release.yml`. Keep `.env.local` private.',
+    '- Format `.py` and `.tsx` files; run black on `.go` after an edit.'
   ].join('\n');
   const findings = await findStale([{ path: 'AGENTS.md', text, tokens: 1 }], root, { ignore: [] }, { staleGlob: true });
   assert.deepEqual(findings.map((finding) => finding.ref), []);
@@ -84,4 +85,20 @@ test('reclaimable tokens count a block once and cover only the owning list item'
   assert.deepEqual([findings[0].startLine, findings[0].endLine], [2, 2]);
   assert.equal(reclaimableTotal(findings), findings[0].reclaimableTokens);
   assert.equal(staleDiff([{ path: 'AGENTS.md', text }], findings).split('\n').filter((line) => line.startsWith('- ')).length, 1);
+});
+
+test('does not report bare extensions, gitignored paths, examples, or forbidden strings', async () => {
+  const root = await repo({ 'src/live.js': '', '.gitignore': '.claude/settings.local.json\n' });
+  const text = [
+    '# Rules',
+    '- Format `.py` and `.tsx` files after an edit.',
+    '- Keep overrides in `.claude/settings.local.json`.',
+    '- Name files with a suffix (e.g. `python-reviewer.md`, `tdd-workflow.md`).',
+    '- Forbidden strings: `assets/old-hero.jpeg` and `github.com/old-org/repo`.',
+    '- Never link `assets/old-hero.jpeg` in a new document.',
+    '- No `rustfmt.toml` or `clippy.toml`; stock defaults only.',
+    '- Without `gone.config.ts` the defaults apply.'
+  ].join('\n');
+  const findings = await findStale([{ path: 'AGENTS.md', text, tokens: 1 }], root, { ignore: [] });
+  assert.deepEqual(findings.map((finding) => finding.ref), []);
 });
