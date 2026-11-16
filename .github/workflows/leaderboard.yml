@@ -1,0 +1,120 @@
+name: leaderboard
+# Once a month: count the most-starred repositories again, rebuild the pages,
+# and commit the new month to this branch. GitHub Pages serves docs/ from main.
+#
+# A month that is already in leaderboard/ is never counted again, so running
+# this by hand in a published month changes nothing. To see that it works
+# without waiting for the 16th, run it by hand with "dry run" ticked.
+on:
+  schedule:
+    - cron: '0 6 16 * *' # 06:00 UTC on the 16th
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run. Count this month into a scratch directory and show the table. Nothing is committed.
+        type: boolean
+        default: false
+permissions:
+  contents: write # commit the new month
+  pages: write # ask GitHub Pages to build it
+concurrency:
+  group: leaderboard
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+
+      - name: Decide what to do
+        id: plan
+        run: |
+          month=$(date -u +%Y-%m)
+          if [ "$DRY_RUN" = true ]; then
+            # Earlier months are copied so the change column has something to
+            # compare against; this month is left out so it is counted afresh.
+            mode=dry
+            out="$RUNNER_TEMP/leaderboard"
+            mkdir -p "$out"
+            cp leaderboard/*.json "$out"/
+            rm -f "$out/$month.json"
+          elif [ -e "leaderboard/$month.json" ]; then
+            mode=skip
+            out=leaderboard
+            echo "::notice::$month is already published. A month is counted once and kept as it was fetched, so there is nothing to do."
+          else
+            mode=publish
+            out=leaderboard
+          fi
+          { echo "month=$month"; echo "mode=$mode"; echo "out=$out"; } >> "$GITHUB_OUTPUT"
+
+      - name: Count
+        if: steps.plan.outputs.mode != 'skip'
+        env:
+          MONTH: ${{ steps.plan.outputs.month }}
+          OUT: ${{ steps.plan.outputs.out }}
+        run: |
+          node scripts/leaderboard.mjs --month "$MONTH" --out "$OUT"
+          # The crawler exits 0 with a short table when it runs out of
+          # repositories to check. That is fine by hand, not for publishing.
+          node -e '
+            const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            if (data.found !== 25 || data.rows.length < 25) {
+              console.error(`::error::expected 25 repositories, found ${data.found} in ${data.checked} checked`);
+              process.exit(1);
+            }
+          ' "$OUT/$MONTH.json"
+          cat "$OUT/$MONTH.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the pages
+        if: steps.plan.outputs.mode == 'publish'
+        run: npm run leaderboard:page
+
+      # A push made with this workflow's token does not start the ci workflow,
+      # so the tests run here, on the files about to be committed.
+      - name: Test
+        if: steps.plan.outputs.mode == 'publish'
+        run: npm test
+
+      - name: Commit and push
+        if: steps.plan.outputs.mode == 'publish'
+        env:
+          MONTH: ${{ steps.plan.outputs.month }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add leaderboard docs
+          git commit -m "leaderboard: $MONTH"
+          git push
+
+      - name: Dry run, build the pages in a scratch directory
+        if: steps.plan.outputs.mode == 'dry'
+        env:
+          OUT: ${{ steps.plan.outputs.out }}
+        run: |
+          node --input-type=module -e '
+            import { build } from "./scripts/leaderboard-page.mjs";
+            for (const file of await build({ from: process.argv[1], out: process.argv[2] })) console.log(`built ${file}`);
+          ' "$OUT" "$RUNNER_TEMP/docs"
+
+      # Sends nothing. It fails if this workflow's token may not write to the
+      # repository, which is what would stop a real run.
+      - name: Dry run, check that a real run could push
+        if: steps.plan.outputs.mode == 'dry'
+        run: git push --dry-run origin "HEAD:$GITHUB_REF_NAME"
+
+      # A push made with this workflow's token does not always start a Pages
+      # build, so ask for one. In a dry run this rebuilds the site as it is,
+      # which shows that the request is allowed.
+      - name: Ask GitHub Pages to build
+        if: steps.plan.outputs.mode != 'skip'
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" --jq '"Pages build: " + .status' || {
+            echo "::error::GitHub Pages was not asked to rebuild. Anything already committed is safe; the next push to main publishes it."
+            exit 1
+          }
