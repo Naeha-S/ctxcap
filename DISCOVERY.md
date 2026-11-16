@@ -20,21 +20,46 @@ created. These are the numbers to compare against after `init` ships.
 | Repositories carrying an `init` block (`ctxcap:begin`) | 0 | code search; `init` is not released yet |
 | `ctxcap` on npm | 7 versions, latest 1.4.0 (2026-11-15) | `registry.npmjs.org/ctxcap` |
 | `ctxcap-mcp` on npm | 9 versions, latest 0.1.7 (2026-11-15) | `registry.npmjs.org/ctxcap-mcp` |
-| npm downloads, last week | not read | see below |
-| GitHub views and clones, last 14 days | not read | see below |
+| `ctxcap` npm downloads, 9 to 15 Nov | 1,576 | read 2026-11-16, see below |
+| `ctxcap-mcp` npm downloads, 9 to 15 Nov | 1,803 | read 2026-11-16, see below |
+| GitHub views, 14 days to 16 Nov | 27 (17 unique) | read 2026-11-16, see below |
+| GitHub clones, 14 days to 16 Nov | 324 (97 unique) | read 2026-11-16, see below |
 
 GitHub code search lags behind pushes, so a zero here means "none indexed yet".
 
-Two numbers could not be read from the sandbox this was written in. The npm
-downloads API is not reachable from it, and the GitHub traffic API refused the
-token it had. Read them before tagging and write them into the table:
+The last four rows were read on 2026-11-16, a day after 1.5.0 was published,
+because the sandbox the rest was written in could reach neither API. The npm
+week ends on 15 November, so it includes the day 1.5.0 went out.
 
-```bash
-curl -s https://api.npmjs.org/downloads/point/last-week/ctxcap
-curl -s https://api.npmjs.org/downloads/point/last-week/ctxcap-mcp
+Read the download numbers with care. Sixteen versions of the two packages were
+published in that week, and registry mirrors and scanners fetch every new
+version, so most of those downloads are probably not people. The 17 unique
+visitors are a better guide to how many have seen the project. The first week
+with no new version published is the one to compare against.
+
+To read them again (PowerShell; in Windows PowerShell `curl` is an alias that
+does not accept `-s`, so use `Invoke-RestMethod` or `curl.exe`):
+
+```powershell
+Invoke-RestMethod https://api.npmjs.org/downloads/point/last-week/ctxcap
+Invoke-RestMethod https://api.npmjs.org/downloads/point/last-week/ctxcap-mcp
 gh api repos/Naeha-S/ctxcap/traffic/views  --jq '{count, uniques}'
 gh api repos/Naeha-S/ctxcap/traffic/clones --jq '{count, uniques}'
 ```
+
+### Re-measure on 2026-12-16
+
+Thirty days after these numbers were read. Not before: a daily look measures
+mood, not use. Two numbers decide it.
+
+| Measure | 2026-11-16 | 2026-12-16 |
+| --- | ---: | ---: |
+| Repositories outside this one that use ctxcap (the four code-search rows above, added up) | 0 | |
+| `ctxcap` npm downloads in a week with no new version published | none yet; 1,576 in a week with seven | |
+
+If neither has moved, the conclusion is not that features are missing. Either
+the framing did not land or nobody wants a context linter, and more surface
+does not tell those two apart.
 
 The GitHub Action runs from its own checkout and never touches npm, so action
 use shows up in the code search rows, not in npm downloads.
@@ -71,15 +96,23 @@ format. It does not show how Claude Code or Cursor reacts to them.
 ### Setup
 
 Use the newest published version; the steps below write it as `<version>`.
+The files are written with `node` so the same lines work in PowerShell and
+bash. Do not write them with PowerShell's `>` or `Out-File`: Windows
+PowerShell saves those as UTF-16 or with a byte-order mark, and ctxcap then
+rejects `.ctxcap.json` as invalid.
 
 ```bash
-mkdir throwaway && cd throwaway && git init
-printf '# Throwaway\n' > README.md
-node -e "console.log('# Project rules\n\n' + 'Always run the tests before you commit, and keep every answer short. '.repeat(120))" > CLAUDE.md
-echo '{"budgets":{"total":500}}' > .ctxcap.json
+mkdir throwaway
+cd throwaway
+git init
+node -e 'const fs=require(`fs`);fs.writeFileSync(`README.md`,`# Throwaway\n`);fs.writeFileSync(`CLAUDE.md`,`# Project rules\n\n`+`Always run the tests before you commit, and keep every answer short. `.repeat(120)+`\n`);fs.writeFileSync(`.ctxcap.json`,JSON.stringify({budgets:{total:500}}))'
 npx ctxcap@<version> init --yes
-git add -A && git commit -m "wired"
+git add -A
+git commit -m "wired"
 ```
+
+That leaves a `CLAUDE.md` of about 1,700 tokens against a budget of 500, so
+the repository is over budget from the first message.
 
 To test a version before it is published, run `npm pack` in the ctxcap
 checkout and `npm i -D /path/to/ctxcap-<version>.tgz` in the throwaway

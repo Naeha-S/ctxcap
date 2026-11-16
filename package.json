@@ -26,7 +26,8 @@
   "scripts": {
     "test": "node test/run.mjs",
     "mcp": "node mcp/server.js",
-    "leaderboard": "node scripts/leaderboard.mjs"
+    "leaderboard": "node scripts/leaderboard.mjs",
+    "leaderboard:page": "node scripts/leaderboard-page.mjs"
   },
   "dependencies": {
     "fast-glob": "3.3.2",
