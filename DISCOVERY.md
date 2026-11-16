@@ -47,6 +47,20 @@ gh api repos/Naeha-S/ctxcap/traffic/views  --jq '{count, uniques}'
 gh api repos/Naeha-S/ctxcap/traffic/clones --jq '{count, uniques}'
 ```
 
+### Re-measure on 2026-12-16
+
+Thirty days after these numbers were read. Not before: a daily look measures
+mood, not use. Two numbers decide it.
+
+| Measure | 2026-11-16 | 2026-12-16 |
+| --- | ---: | ---: |
+| Repositories outside this one that use ctxcap (the four code-search rows above, added up) | 0 | |
+| `ctxcap` npm downloads in a week with no new version published | none yet; 1,576 in a week with seven | |
+
+If neither has moved, the conclusion is not that features are missing. Either
+the framing did not land or nobody wants a context linter, and more surface
+does not tell those two apart.
+
 The GitHub Action runs from its own checkout and never touches npm, so action
 use shows up in the code search rows, not in npm downloads.
 
