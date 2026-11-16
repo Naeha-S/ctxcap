@@ -18,7 +18,8 @@ const KEEP = 'translate="no" class="notranslate"';
 export function page(data, { months = [data.month], root = false } = {}) {
   const name = monthName(data.month);
   const title = `${TITLE}, ${name}: dead references in the most-starred context files`;
-  const summary = `${data.checked} of the most-starred repositories were scanned. ${data.totals.findings} references did not resolve; ${data.totals.verified} were confirmed as defects after reading each one.`;
+  const scanned = data.checked - data.totals.notScanned;
+  const summary = `${scanned} of the most-starred repositories were scanned. ${data.totals.findings} references did not resolve; ${data.totals.verified} were confirmed as defects after reading each one.`;
   const permalink = `${SITE}/receipts/${data.month}/`;
   const up = root ? '../' : '../../';
   const others = months.filter((month) => month !== data.month).sort().reverse();
@@ -55,7 +56,7 @@ export function page(data, { months = [data.month], root = false } = {}) {
   <p class="lede">An instruction file that names a path which no longer exists is not a style problem. It is a factual defect with a one-line fix. This page scans the context files of the most-starred repositories, reports the references that do not resolve, and states what was done about each one.</p>
 
   <ul class="stats">
-    <li><b>${data.checked}</b><span>repositories scanned</span></li>
+    <li><b>${scanned}</b><span>repositories scanned</span></li>
     <li><b>${data.totals.findings}</b><span>references that did not resolve</span></li>
     <li><b>${data.totals.verified}</b><span>confirmed defects after reading</span></li>
     <li><b>${data.totals.excluded}</b><span>read and excluded as examples</span></li>
@@ -93,7 +94,7 @@ ${data.unscanned.map((entry) => `    <li><span ${KEEP}>${esc(entry.repo)}</span>
     <li>A reference is reported only when it is spelled like a path into the repository and the path does not resolve. Identifiers, commands that are not <code ${KEEP}>npm run</code>, routes, branches, and package names are not paths and are skipped.</li>
     <li>An <code ${KEEP}>npm run</code> script is judged only when every <code ${KEEP}>package.json</code> in the tree was fetched; otherwise command findings are dropped rather than guessed.</li>
     <li>Two repositories in the index are not here: GitHub truncates their file tree, so a missing path cannot be distinguished from an unlisted one.</li>
-    <li>Data fetched ${esc(data.measured)}. Scanned ${data.checked} repositories holding the files in the <a href="${up}">${INDEX}</a> for ${esc(data.month)}. Counted with <code ${KEEP}>ctxcap</code>, offline.</li>
+    <li>Data fetched ${esc(data.measured)}. Selected ${data.checked} repositories holding the files in the <a href="${up}">${INDEX}</a> for ${esc(data.month)}. Counted with <code ${KEEP}>ctxcap</code>, offline.</li>
   </ul>
 
   <h2>Run it on a repository</h2>

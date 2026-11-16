@@ -389,7 +389,9 @@ an agent needs are well spent. It says what the file costs, and how it compares.
 The month's [analysis](leaderboard/2026-11-analysis.md) asks the question the
 table invites — whether size falls as stars rise. It does not fall: the
 correlation is weakly positive and not distinguishable from zero, and the
-document says so rather than repeating the guess.
+document says so rather than repeating the guess. The [benchmark
+writeup](BENCHMARK.md) puts the method and all three measurements — context
+files, MCP tool definitions, stale references — in one place.
 
 ### The most-starred repositories compared
 
@@ -452,7 +454,7 @@ every finding is read by a person before it is called a defect.
 
 | Month | Repositories | Found | Confirmed | Excluded after reading |
 | --- | ---: | ---: | ---: | ---: |
-| 2026-11 | 25 | 5 | 2 | 3 |
+| 2026-11 | 25 selected (23 scanned) | 5 | 2 | 3 |
 
 - `twbs/bootstrap` `AGENTS.md:3` says "Tool-agnostic; `CLAUDE.md` points here."
   There is no `CLAUDE.md`.
