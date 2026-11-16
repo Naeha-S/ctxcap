@@ -32,6 +32,11 @@ repository search.
    `init` writes runs `npx ctxcap@X.Y.Z` and `Naeha-S/ctxcap@vX.Y.Z`, and both
    fail until that version and tag exist.
 11. Git tags — create `vX.Y.Z`, then move `v1` to the same release commit.
+12. MCP Registry — after `ctxcap-mcp` is on npm, run `mcp-publisher publish`
+    from the repository root. It sends `server.json`, and the registry checks
+    that the npm package of that version exists and carries the same
+    `mcpName`. npm does not do this for you: the listing stayed at 0.1.4
+    while npm went to 0.1.9.
 
 ## Before publishing
 
@@ -42,6 +47,11 @@ goes for `ctxcap-mcp`.
 
 Publish from a commit where `npm test` passes, and tag that same commit.
 
+The MCP Registry keeps every version too, and a published one cannot be
+edited. A change to `server.json` alone (the description, `websiteUrl`) only
+reaches the listing under a version the registry has not seen, which means the
+next `ctxcap-mcp` release.
+
 ## Required checks
 
 ```powershell
@@ -51,6 +61,7 @@ npm test
 npm pack --dry-run
 npm view ctxcap version
 npm view ctxcap-mcp version
+mcp-publisher validate
 ```
 
 For a release, verify the CLI and MCP server from a cold directory with

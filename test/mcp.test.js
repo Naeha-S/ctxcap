@@ -105,6 +105,10 @@ test('release files agree: server.json follows the MCP package, which accepts th
   assert.deepEqual(server.packages.map((entry) => [entry.identifier, entry.version]), [['ctxcap-mcp', mcpPackage.version]]);
   assert.equal(server.name, mcpPackage.mcpName);
 
+  // The registry rejects a longer description, and a website that is not https.
+  assert.ok(server.description.length <= 100, 'server.json description is over 100 characters');
+  assert.match(server.websiteUrl, /^https:\/\/[^\s"'<>]+$/);
+
   // The wrapper only imports ctxcap/mcp/server.js, so its range decides which
   // server a fresh install gets. It must start at this release, not before it.
   assert.equal(mcpPackage.dependencies.ctxcap, `^${packageJson.version}`);
