@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { cli, git, repo, tree, treeHash } from './helpers.js';
 
@@ -114,4 +114,34 @@ test('gitignore: doctor notices when the rule comes back, and init --yes narrows
   assert.match((await tree(dir))['.gitignore'], /^# ctxcap:begin$/m);
   cli(dir, 'init', '--remove', '--yes');
   assert.equal((await tree(dir))['.gitignore'], 'dist/\n.ctxcap/\n');
+});
+
+test('line endings: files init wrote are still current after a CRLF checkout', async () => {
+  // Git for Windows checks text files out with CRLF by default. Nothing about
+  // the wiring changed, so init must not offer to write it again.
+  const dir = await repo({ 'README.md': '# Widgets\n', 'AGENTS.md': '# Notes\n' });
+  assert.equal(cli(dir, 'init', '--yes').status, 0);
+  const whole = ['.claude/skills/ctxcap/SKILL.md', '.cursor/rules/ctxcap.mdc', '.ctxcap/.gitignore', '.github/workflows/ctxcap.yml', '.ctxcap/badge.json', '.ctxcap/badge.owned'];
+  for (const file of whole) {
+    const text = await readFile(path.join(dir, file), 'utf8');
+    assert.ok(!text.includes('\r'), file);
+    await writeFile(path.join(dir, file), text.replace(/\n/g, '\r\n'));
+  }
+  const crlf = await tree(dir);
+
+  const again = cli(dir, 'init');
+  assert.equal(again.status, 0, again.stderr);
+  assert.doesNotMatch(again.stdout + again.stderr, /would (write|delete)/);
+  assert.equal(again.stdout, '');
+  assert.equal(cli(dir, 'init', '--yes').status, 0);
+  assert.deepEqual(await tree(dir), crlf);
+  const report = JSON.parse(cli(dir, 'doctor', '--json').stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.agents.filter((entry) => entry.status !== 'wired').map((entry) => entry.agent), ['mcp']);
+
+  // A real change still gets written, and remove still takes everything out.
+  await writeFile(path.join(dir, whole[0]), (await readFile(path.join(dir, whole[0]), 'utf8')).replace('ctxcap', 'ctxcap-old'));
+  assert.match(cli(dir, 'init').stderr, /would write: \.claude\/skills\/ctxcap\/SKILL\.md/);
+  assert.equal(cli(dir, 'init', '--remove', '--yes').status, 0);
+  assert.deepEqual(await tree(dir), { 'README.md': '# Widgets\n', 'AGENTS.md': '# Notes\n' });
 });

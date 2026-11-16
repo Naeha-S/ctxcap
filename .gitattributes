@@ -1,0 +1,5 @@
+# Every text file is LF in the working tree, on every platform. The tests
+# compare committed files byte for byte, and a CRLF copy of a context file
+# counts a few tokens more than the LF copy CI measures.
+* text=auto eol=lf
+*.png binary

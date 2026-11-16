@@ -7,7 +7,7 @@ import { parse as parseYaml } from 'yaml';
 import { countTokens } from '../src/tokenize.js';
 import { SKILL_DESCRIPTION, SKILL_TRIGGERS, AGENT_RULES, GROUPS, DEFAULT_GROUPS } from '../src/wire.js';
 import { VERSION } from '../src/version.js';
-import { CLI, cli, repo, tree } from './helpers.js';
+import { CLI, cli, repo, tree, committed } from './helpers.js';
 
 const frontmatter = (text) => {
   const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
@@ -41,7 +41,7 @@ test('claude: the skill description is short, names three requests, and the comm
   assert.ok(phrases.includes('my CLAUDE.md is getting long'));
   // Its cost in every session, which the README states.
   assert.ok(countTokens(raw) < 100, `frontmatter is ${countTokens(raw)} tokens`);
-  const readme = await readFile('README.md', 'utf8');
+  const readme = await committed('README.md');
   assert.ok(readme.includes(`${countTokens(raw)} tokens per session for the skill's name and description, ${countTokens(skill)} once the skill loads`));
 
   for (const command of ['--plan --budget <n>', '--plan --budget <n> --apply', '--verify <planId>', '--json', '--stale --json']) {
@@ -52,7 +52,7 @@ test('claude: the skill description is short, names three requests, and the comm
 });
 
 test('claude: the three agent rules are the ones in the README, word for word', async () => {
-  const readme = await readFile('README.md', 'utf8');
+  const readme = await committed('README.md');
   assert.ok(readme.includes(AGENT_RULES));
   const dir = await repo();
   cli(dir, 'init', '--yes', '--agents', 'claude');
@@ -421,7 +421,7 @@ test('README: "What it runs" lists every command init writes, word for word', as
   const sources = [...new Set([...found.values()].map((entry) => entry.file))].sort();
   assert.deepEqual(sources, ['.claude/settings.json', '.claude/skills/ctxcap/SKILL.md', '.cursor/mcp.json', '.cursor/rules/ctxcap.mdc', '.github/copilot-instructions.md', '.github/workflows/ctxcap.yml', '.mcp.json', 'AGENTS.md']);
 
-  const readme = await readFile('README.md', 'utf8');
+  const readme = await committed('README.md');
   const section = readme.slice(readme.indexOf('### What it runs'), readme.indexOf('| Flag | Effect |'));
   assert.ok(section.length > 500);
   const documented = [];

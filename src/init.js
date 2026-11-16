@@ -28,6 +28,7 @@ Exit: 0 done, 3 when a target was left alone and needs --force, 2 bad usage.`;
 
 // ---------------------------------------------------------------- text helpers
 
+const sameText = (a, b) => a === b || a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
 const eolOf = (text) => (text && text.includes('\r\n') ? '\r\n' : '\n');
 const PIN = /ctxcap@v?(\d+\.\d+\.\d+)/g;
 const pinsIn = (text) => [...new Set([...text.matchAll(PIN)].map((match) => match[1]))];
@@ -176,7 +177,9 @@ function inspect(target, text, sentinel) {
 }
 
 function wired(target, text, context, { adopt = false } = {}) {
-  if (target.kind === 'file') return target.content;
+  // A checkout with CRLF line endings (git's default on Windows) is still the
+  // file init wrote; rewriting it would show a change on every run.
+  if (target.kind === 'file') return text !== null && sameText(text, target.content) ? text : target.content;
   if (target.kind === 'block') return text !== null && blockSpan(text) ? replaceBlock(text, target) : addBlock(text, target);
   if (target.kind === 'ignore') return narrowIgnore(text, target);
   const parsed = text === null ? { doc: {}, ...NEW_JSON } : parseJson(text);
@@ -289,7 +292,7 @@ export async function planInit({ root, groups, remove = false, force = false, ve
       step.after = wired(target, before, context, { adopt: state === 'custom' });
       if (step.after !== before) Object.assign(step, { action: 'write', reason: '' });
       steps.push(step);
-      if (sentinel && sentinel.before !== target.sentinel.content) steps.push({ ...sentinel, after: target.sentinel.content, action: 'write' });
+      if (sentinel && !(sentinel.before !== null && sameText(sentinel.before, target.sentinel.content))) steps.push({ ...sentinel, after: target.sentinel.content, action: 'write' });
       continue;
     }
     steps.push(step);

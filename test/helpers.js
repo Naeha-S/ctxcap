@@ -6,6 +6,12 @@ import { spawnSync } from 'node:child_process';
 
 export const CLI = path.resolve('src/index.js');
 
+/**
+ * A file from this repository, with LF line endings. .gitattributes asks for
+ * LF, but a checkout made before it existed keeps CRLF until it is redone.
+ */
+export const committed = async (file) => (await readFile(path.resolve(file), 'utf8')).replace(/\r\n/g, '\n');
+
 export const cli = (dir, ...args) => spawnSync('node', [CLI, ...args], { cwd: dir, encoding: 'utf8' });
 
 export const git = (dir, ...args) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: dir, encoding: 'utf8' });
@@ -18,6 +24,9 @@ export async function repo(files = {}, { remote = 'https://github.com/acme/widge
     await writeFile(path.join(dir, file), content);
   }
   git(dir, 'init', '-q');
+  // Git for Windows defaults to core.autocrlf=true, which makes `git apply`
+  // and checkouts write CRLF. The fixtures state their line endings exactly.
+  git(dir, 'config', 'core.autocrlf', 'false');
   if (remote) git(dir, 'remote', 'add', 'origin', remote);
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '--allow-empty', '-m', 'fixture');

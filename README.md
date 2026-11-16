@@ -579,6 +579,8 @@ Token counts use OpenAI's `o200k_base` encoding. They match GPT-4o-family
 models and are an estimate for everything else: Claude and Gemini tokenize
 differently, and the gap has not been measured here. Every report carries
 `"approximate": true` and the tokenizer ID. Compare deltas, not absolutes.
+CRLF line endings are counted as LF, so a Windows checkout gets the same
+numbers as CI on the same commit.
 `confidence` on a plan finding is a fixed value per finding kind, not a
 measurement.
 

@@ -5,3 +5,5 @@ ctxcap.sarif
 tokenlint-report.json
 tokenlint.sarif
 *.tgz
+# plans saved by running --plan against the examples
+examples/**/.ctxcap/
