@@ -1,0 +1,83 @@
+name: ctxcap misread something
+description: A reference flagged as dead that is alive, a plan that would cut a rule you need, a file missed, or a count that looks wrong.
+title: "Misread: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful kind of report. ctxcap reads your files with fixed rules, and the rules are wrong somewhere.
+        Three things make it fixable: the command, what ctxcap printed, and the lines of the file it was looking at.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What did it get wrong?
+      options:
+        - "--stale flagged a path, command, or reference that exists"
+        - "--stale missed one that is dead"
+        - "--plan would cut or condense something the agent needs"
+        - "--plan left out something that is safe to cut"
+        - A context file was not found, or a file was counted that is not one
+        - The token count looks wrong
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: The command you ran
+      placeholder: npx ctxcap --stale
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What ctxcap printed
+      description: Only the lines this report is about. Adding `--json` to the command gives the most detail.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: The lines it was reading
+      description: Paste the part of the context file the output points at, a few lines either side. If the repository is public, a link to the file at a commit is better.
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should have said, and why
+      description: 'For example: "`scripts/build.sh` exists, it is created by `npm run setup`", or "lines 19 to 20 are the rule the tests depend on".'
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ctxcap version
+      description: The output of `npx ctxcap --version`.
+      placeholder: 1.5.1
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How it was run
+      options:
+        - Command line
+        - MCP server (ctxcap-mcp)
+        - GitHub Action
+        - A hook or rule written by ctxcap init
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, macOS 15, Ubuntu 24.04
+  - type: textarea
+    id: config
+    attributes:
+      label: .ctxcap.json, if the repository has one
+      render: json

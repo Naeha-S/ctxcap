@@ -597,12 +597,23 @@ build scripts, or its linters; if so, it may not need always-loaded space.
 baseline and reports the delta on every pull request. Use the first for nudges
 while you type and this one for a gate in CI and review.
 
+## When it is wrong
+
+ctxcap reads your files with fixed rules, so it will misread some of them: a
+path flagged as dead that exists, or a plan that would cut a rule you need.
+[Report the misread](https://github.com/Naeha-S/ctxcap/issues/new?template=misread.yml)
+with the command, what it printed, and the lines it was reading.
+
 ## Packages
 
 | Package | Description |
 | --- | --- |
 | [`ctxcap`](https://www.npmjs.com/package/ctxcap) | CLI, GitHub Action, and MCP server |
 | [`ctxcap-mcp`](https://www.npmjs.com/package/ctxcap-mcp) | `npx`-runnable MCP server; depends on `ctxcap` |
+
+The MCP server is listed in the
+[official MCP Registry](https://registry.modelcontextprotocol.io/) as
+`io.github.Naeha-S/ctxcap`.
 
 ## License
 

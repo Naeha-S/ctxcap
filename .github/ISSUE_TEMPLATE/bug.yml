@@ -1,0 +1,46 @@
+name: Something failed
+description: An error, a crash, a wrong exit code, or wiring from ctxcap init that does not run.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: command
+    attributes:
+      label: The command you ran
+      placeholder: npx ctxcap init --yes
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What happened
+      description: The full output, including the error. Say what the exit code was if you know it.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ctxcap version
+      description: The output of `npx ctxcap --version`. For the MCP server, the `ctxcap-mcp` version as well.
+      placeholder: 1.5.1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system, shell, and Node version
+      placeholder: Windows 11, PowerShell 5.1, Node 22.11
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Coding agent, if one is involved
+      placeholder: Claude Code 2.0, Cursor 2.1
