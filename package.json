@@ -11,7 +11,8 @@
     "src",
     "mcp",
     "schema",
-    "scripts",
+    "scripts/annotate.mjs",
+    "scripts/comment.mjs",
     "examples",
     "!examples/**/.ctxcap",
     "action.yml",
@@ -24,7 +25,8 @@
   },
   "scripts": {
     "test": "node test/run.mjs",
-    "mcp": "node mcp/server.js"
+    "mcp": "node mcp/server.js",
+    "leaderboard": "node scripts/leaderboard.mjs"
   },
   "dependencies": {
     "fast-glob": "3.3.2",
