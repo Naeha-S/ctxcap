@@ -95,7 +95,9 @@ test('does not report bare extensions, gitignored paths, examples, or forbidden 
     '- Keep overrides in `.claude/settings.local.json`.',
     '- Name files with a suffix (e.g. `python-reviewer.md`, `tdd-workflow.md`).',
     '- Forbidden strings: `assets/old-hero.jpeg` and `github.com/old-org/repo`.',
-    '- Never link `assets/old-hero.jpeg` in a new document.'
+    '- Never link `assets/old-hero.jpeg` in a new document.',
+    '- No `rustfmt.toml` or `clippy.toml`; stock defaults only.',
+    '- Without `gone.config.ts` the defaults apply.'
   ].join('\n');
   const findings = await findStale([{ path: 'AGENTS.md', text, tokens: 1 }], root, { ignore: [] });
   assert.deepEqual(findings.map((finding) => finding.ref), []);

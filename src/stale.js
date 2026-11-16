@@ -24,6 +24,10 @@ const EXAMPLE = /\b(?:e\.g\.?|i\.e\.?|for\s+example|for\s+instance|such\s+as)\b/
 // A path named in a prohibition is named because it must not appear again, so
 // its absence is the point: `forbidden doc strings` lists `assets/old-hero.jpeg`.
 const PROHIBITED = /\b(?:forbidden|banned|prohibited|disallowed|must\s+not\s+(?:appear|contain|use))\b/i;
+// A line that states a file is absent agrees with the finding, so it is not one:
+// "No `rustfmt.toml` or `clippy.toml`. Stock defaults only." is not a reference
+// that broke. Whole-line, because the assertion can sit in front of any item.
+const ABSENT = /(?:^|[\s(])(?:no|none|without|lacks?|missing|has\s+no|there\s+is\s+no|nothing)\b/i;
 const SCAN_IGNORE = ['**/node_modules/**', '**/.git/**'];
 
 function clean(value) {
@@ -183,6 +187,7 @@ export async function findStale(files, root, config, { staleGlob = false } = {})
         // `e.g. \`python-reviewer.md\`` names a shape, not a file that should exist.
         if (EXAMPLE.test(line.slice(0, match.index))) continue;
         if (PROHIBITED.test(line)) continue;
+        if (ABSENT.test(line.slice(0, match.index))) continue;
         const script = /^npm run\s+([^\s`]+)/.exec(value)?.[1];
         if (script) {
           const known = await scripts();

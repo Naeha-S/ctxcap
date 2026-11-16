@@ -459,14 +459,27 @@ PR body:
 > - [x] I did not merge/close remote PRs or issues from an automation lane
 >   without owner approval.
 
-**Prepare both in their own forks, not from this repo.** The branch you are on
-is `arena/7c3faf13-ctxcap`; `gh repo fork affaan-m/ECC --clone=false` then push a
-branch there and open the PR with `--head Naeha-S:ci/ctxcap-context-budget`.
+**Both were opened as #3943 and #3392 — and both had a bug.** They shipped only
+the workflow, with no `ctxcap-baseline.json`. Since `--baseline <merge-base>`
+reads the baseline at that ref, an absent baseline makes the delta the file's
+entire size, so the next PR that touched any context file — or none at all —
+would have failed for the wrong reason. claw-code's also measured 1,893 of that
+repo's 9,008 tokens, because its nine nested `rust/**/AGENTS.md` and `src/AGENTS.md`
+files are outside the default root-level scope.
 
-**If they push back on a third-party action**, the honest fallback is the
-`npx` form with no action at all — same number, no trust question:
+[`examples/upstream/`](examples/upstream/) holds the verified fixes, the exact
+comments to post on each PR, and the two commands to land them. Measured on real
+checkouts: delta 0 and exit 0 as it stands, `+390` and exit 1 when `AGENTS.md`
+grows.
+
+**If they push back on a third-party action**, the honest fallback is the `npx`
+form with no action at all — same number, no trust question. It only means
+"growth" rather than "size" if `ctxcap-baseline.json` is committed alongside it,
+for the reason above:
 
 ```yaml
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - run: npx -y ctxcap@1.5.1 --fail-on increase --baseline "${{ github.event.pull_request.base.sha }}"
 ```
 

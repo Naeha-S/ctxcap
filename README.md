@@ -287,6 +287,15 @@ passes when it also commits the refreshed baseline
 (`npx ctxcap --update-baseline`). The baseline diff is what the reviewer
 approves. The first pull request that adds the action passes the same way.
 
+**Commit the baseline before the first run, not after.** `--baseline <ref>`
+reads `ctxcap-baseline.json` at that ref, so with no baseline in the repository
+there is nothing to compare against and the delta becomes each file's whole
+size: every pull request that touches a context file fails, including the one
+that only adds the workflow. Run `npx ctxcap --update-baseline` and commit
+`ctxcap-baseline.json` in the same pull request as the workflow. Existing
+repositories have this problem; a repository that started with a baseline does
+not.
+
 Inputs:
 
 | Input | Default | Description |
@@ -327,11 +336,12 @@ spelled like a path into this repository:
   `.tsx`, and `.go` are never reported;
 - `npm run <script>` must be a script in some `package.json` in the repository.
 
-Three more shapes are skipped because absence proves nothing about them: a path
+Four more shapes are skipped because absence proves nothing about them: a path
 your `.gitignore` covers (`.claude/settings.local.json` is meant to be missing),
-a path introduced as an illustration (`e.g.`, `such as`), and a path named in a
-prohibition (`forbidden strings: assets/old-hero.jpeg`). If a real reference is
-skipped this way, delete it by hand.
+a path introduced as an illustration (`e.g.`, `such as`), a path named in a
+prohibition (`forbidden strings: assets/old-hero.jpeg`), and a path named in a
+statement that it is absent (`No rustfmt.toml; stock defaults`). If a real
+reference is skipped this way, delete it by hand.
 
 Paths resolve against the repository root and the context file's own
 directory. Fenced code blocks, absolute paths, `../` paths, URLs, and anything
@@ -349,21 +359,31 @@ not mean the file is up to date.
 
 ## What real repositories spend
 
-Measured with `ctxcap --stale` 1.4.0 on 15 November 2026, at the commit shown:
+Measured with `ctxcap --stale` on 16 November 2026, from each default branch:
 
-| Repository | Commit | Context files | Tokens | Stale findings |
-| --- | --- | --- | ---: | ---: |
-| `langchain-ai/langchain` | `ea17e48` | `AGENTS.md` | 4,685 | 0 |
-| `pydantic/pydantic-ai` | `f93bcff` | `AGENTS.md` | 4,658 | 0 |
-| `sst/opencode` | `d432a06` | `AGENTS.md` | 4,025 | 0 |
-| `modelcontextprotocol/python-sdk` | `77001c9` | `AGENTS.md`, `CLAUDE.md` | 2,223 | 0 |
-| `astral-sh/uv` | `d5c3f17` | `AGENTS.md` | 823 | 0 |
-| `modelcontextprotocol/typescript-sdk` | `919bb8e` | `CLAUDE.md` | 296 | 0 |
+| Repository | Context files | Tokens | Stale findings |
+| --- | --- | ---: | ---: |
+| `langchain-ai/langchain` | `AGENTS.md` | 4,685 | 0 |
+| `pydantic/pydantic-ai` | `AGENTS.md` | 4,658 | 0 |
+| `anomalyco/opencode` | `AGENTS.md` | 4,025 | 0 |
+| `n8n-io/n8n` | `AGENTS.md`, `CLAUDE.md` | 6,254 | 0 |
+| `affaan-m/ECC` | 42 files | 13,286 | 0 |
+| `ultraworkers/claw-code` | 11 files | 9,008 | 0 |
+| `modelcontextprotocol/python-sdk` | `AGENTS.md`, `CLAUDE.md` | 2,223 | 0 |
+| `astral-sh/uv` | `AGENTS.md` | 823 | 0 |
+| `modelcontextprotocol/typescript-sdk` | `CLAUDE.md` | 296 | 0 |
 
-These repositories are how the stale pass was tuned. An earlier version treated
-any dotted or slashed inline code as a path and reported 41 findings across
-`opencode` and `langchain`, nearly all of them wrong. The rules above are what
-was left after removing every false one.
+The first two are how the stale pass was tuned for paths. An earlier version
+treated any dotted or slashed inline code as a path and reported 41 findings
+across `opencode` and `langchain`, nearly all of them wrong.
+
+The last four were added by running it against the repositories in the
+[monthly leaderboard](leaderboard/), which is a harder test than a curated list
+because nobody chose those files to be clean. Four kinds of false positive came
+out of it, all now covered by the rules above: bare extensions (`.py`, `.tsx`)
+reported as missing files, a path their `.gitignore` covers, a path introduced
+with `e.g.`, and a path listed under `forbidden`. `affaan-m/ECC` went from 12
+findings to 0 and `ultraworkers/claw-code` from 2 to 0.
 
 ## Trim to a budget
 
