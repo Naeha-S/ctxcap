@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import fg from 'fast-glob';
 import { countTokens } from './tokenize.js';
@@ -18,6 +18,12 @@ const IMPERATIVE = /^(add|allow|avoid|build|check|choose|configure|create|delete
 const BACKTICK = /`([^`\r\n]+)`/g;
 const AT_REF = /(?:^|[\s([{])([@#](?:\.?\/)?[A-Za-z0-9_./-]+)/g;
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+/;
+// A path introduced as an illustration is not asserted to exist: `e.g.`,
+// `for example`, `such as`. `python-reviewer.md` is a naming example, not a file.
+const EXAMPLE = /\b(?:e\.g\.?|i\.e\.?|for\s+example|for\s+instance|such\s+as)\b/i;
+// A path named in a prohibition is named because it must not appear again, so
+// its absence is the point: `forbidden doc strings` lists `assets/old-hero.jpeg`.
+const PROHIBITED = /\b(?:forbidden|banned|prohibited|disallowed|must\s+not\s+(?:appear|contain|use))\b/i;
 const SCAN_IGNORE = ['**/node_modules/**', '**/.git/**'];
 
 function clean(value) {
@@ -50,8 +56,12 @@ export function blockRange(lines, index) {
 // Resolves a reference against the repo root and the context file's directory.
 // Returns 'ok', 'stale', or 'skip'. 'skip' means it is not clearly a path into
 // this repo, so it is not reported: precision matters more than recall here.
-async function resolve(value, { root, dir, names, staleGlob }) {
+async function resolve(value, { root, dir, names, ignoredPaths, staleGlob }) {
   if (!value || SKIP.test(value) || !PATH_CHARS.test(value)) return 'skip';
+  // A gitignored path is absent by design: `.claude/settings.local.json` holds
+  // machine-local overrides, so its absence says nothing about the file. The
+  // check is by pattern, because git path matching needs no shell for this.
+  if (ignoredPaths?.(value)) return 'skip';
   const glob = value.includes('*');
   if (glob && !staleGlob) return 'skip';
   const ref = value.replace(/^\.\//, '').replace(/\/+$/, '');
@@ -60,6 +70,9 @@ async function resolve(value, { root, dir, names, staleGlob }) {
   const exists = (candidate) => bases.some((base) => existsSync(path.join(root, base, candidate)));
 
   if (!ref.includes('/')) {
+    // `.py`, `.tsx`, `.go`: a bare extension names a kind of file, not a file.
+    // Black on `.py` and tsc on `.ts` are not references to anything missing.
+    if (!/\./.test(ref.replace(/^\./, ''))) return 'skip';
     const extension = /\.([A-Za-z0-9]+)$/.exec(ref)?.[1].toLowerCase();
     if (!FILE_EXTENSIONS.has(extension)) return 'skip';
     if (glob) return (await fg(`**/${ref}`, { cwd: root, ignore: SCAN_IGNORE, dot: true })).length ? 'ok' : 'stale';
@@ -100,6 +113,35 @@ async function packageScripts(root) {
   return scripts;
 }
 
+// Paths a repository has chosen not to track, as `.gitignore` matches them.
+// Absence is never evidence that one of these is stale, so they are not checked.
+function ignoredIn(root) {
+  const dir = root;
+  let patterns;
+  try {
+    patterns = fg.sync('.gitignore', { cwd: dir, dot: true }).length
+      ? readFileSync(path.join(dir, '.gitignore'), 'utf8')
+        .split('\n').map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#') && !line.startsWith('!'))
+      : [];
+  } catch {
+    return () => false;
+  }
+  return (candidate) => {
+    const name = path.posix.basename(candidate);
+    return patterns.some((pattern) => {
+      const bare = pattern.replace(/^\/+/, '').replace(/\/+$/, '');
+      if (!bare) return false;
+      if (bare.startsWith('*.')) return name.endsWith(bare.slice(1));
+      if (bare.includes('*')) return fg.sync(candidate, { cwd: dir, dot: true, onlyFiles: false }).length > 0
+        || fg.sync(bare, { cwd: dir, dot: true, onlyFiles: false }).length > 0;
+      // An unanchored name matches at any depth; an anchored one only at the root.
+      if (pattern.startsWith('/')) return candidate === bare || candidate.startsWith(`${bare}/`);
+      return candidate === bare || candidate.startsWith(`${bare}/`) || candidate.endsWith(`/${bare}`) || name === bare;
+    });
+  };
+}
+
 export async function findStale(files, root, config, { staleGlob = false } = {}) {
   const findings = [];
   let scriptSet;
@@ -109,9 +151,11 @@ export async function findStale(files, root, config, { staleGlob = false } = {})
     nameSet ??= new Set((await fg('**/*', { cwd: root, ignore: SCAN_IGNORE, dot: true })).map((file) => path.posix.basename(file)));
     return nameSet;
   };
+  let ignoredPaths;
+  const untracked = () => (ignoredPaths ??= ignoredIn(root));
   for (const file of files) {
     const lines = file.text.split('\n');
-    const context = { root, dir: path.posix.dirname(file.path) === '.' ? '' : path.posix.dirname(file.path), names, staleGlob };
+    const context = { root, dir: path.posix.dirname(file.path) === '.' ? '' : path.posix.dirname(file.path), names, ignoredPaths: untracked(), staleGlob };
     let fenced = false;
     let underHeading = false;
     for (let index = 0; index < lines.length; index++) {
@@ -136,6 +180,9 @@ export async function findStale(files, root, config, { staleGlob = false } = {})
 
       for (const match of line.matchAll(BACKTICK)) {
         const value = clean(match[1].trim());
+        // `e.g. \`python-reviewer.md\`` names a shape, not a file that should exist.
+        if (EXAMPLE.test(line.slice(0, match.index))) continue;
+        if (PROHIBITED.test(line)) continue;
         const script = /^npm run\s+([^\s`]+)/.exec(value)?.[1];
         if (script) {
           const known = await scripts();

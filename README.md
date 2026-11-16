@@ -323,8 +323,15 @@ spelled like a path into this repository:
   is checked; `origin/main`, `feat/x`, and `@scope/pkg` are not);
 - without a slash, the name must end in a known file extension and exist
   nowhere in the repository (`gone.config.ts` is checked; `console.log` and
-  `1.2.3` are not);
+  `1.2.3` are not). A bare extension is a kind of file, not a file: `.py`,
+  `.tsx`, and `.go` are never reported;
 - `npm run <script>` must be a script in some `package.json` in the repository.
+
+Three more shapes are skipped because absence proves nothing about them: a path
+your `.gitignore` covers (`.claude/settings.local.json` is meant to be missing),
+a path introduced as an illustration (`e.g.`, `such as`), and a path named in a
+prohibition (`forbidden strings: assets/old-hero.jpeg`). If a real reference is
+skipped this way, delete it by hand.
 
 Paths resolve against the repository root and the context file's own
 directory. Fenced code blocks, absolute paths, `../` paths, URLs, and anything
