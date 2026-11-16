@@ -1,0 +1,161 @@
+{
+  "title": "Dead references in the most-starred context files",
+  "month": "2026-11",
+  "measured": "2026-11-16",
+  "source": "leaderboard/2026-11.json",
+  "top": null,
+  "checked": 25,
+  "repositoriesWithDefects": 2,
+  "totals": {
+    "findings": 5,
+    "verified": 2,
+    "excluded": 3,
+    "unreviewed": 0,
+    "notScanned": 2
+  },
+  "verified": [
+    {
+      "repo": "twbs/bootstrap",
+      "stars": 175064,
+      "tokens": 2026,
+      "findings": [
+        {
+          "repo": "twbs/bootstrap",
+          "stars": 175064,
+          "path": "AGENTS.md",
+          "line": 3,
+          "rule": "stale-path",
+          "ref": "CLAUDE.md",
+          "text": "Guidance for AI coding agents working in this repository. Tool-agnostic; `CLAUDE.md` points here.",
+          "reclaimableTokens": 25,
+          "before": "",
+          "after": "",
+          "evidence": {
+            "asDirectory": [],
+            "renamed": []
+          },
+          "review": {
+            "status": "defect",
+            "reason": "The sentence asserts that a CLAUDE.md points at this file. There is no CLAUDE.md at the root, and the repository has not had one since the file was renamed to AGENTS.md. The claim is false, and an agent may go looking for it.",
+            "replace": {
+              "from": "Tool-agnostic; `CLAUDE.md` points here.",
+              "to": "Tool-agnostic."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "repo": "avelino/awesome-go",
+      "stars": 194037,
+      "tokens": 774,
+      "findings": [
+        {
+          "repo": "avelino/awesome-go",
+          "stars": 194037,
+          "path": "AGENTS.md",
+          "line": 38,
+          "rule": "stale-path",
+          "ref": ".github/scripts/check-quality.js",
+          "text": "- The `PR Quality Checks` workflow will run `.github/scripts/check-quality.js`; ensure referenced links in PR bodies are reachable.",
+          "reclaimableTokens": 26,
+          "before": "- For list-only modifications, run linting/formatting on touched files if tools are configured locally.",
+          "after": "",
+          "evidence": {
+            "asDirectory": [
+              ".github/scripts/check-quality/main.go",
+              ".github/scripts/check-quality/output_test.go"
+            ],
+            "renamed": []
+          },
+          "review": {
+            "status": "defect",
+            "reason": "The reference is to a file that does not exist. The repository has a directory at that path instead: .github/scripts/check-quality/ holds a Go program, and the PR quality workflow runs it. The file was replaced by a directory; the sentence was not updated.",
+            "replace": {
+              "from": "`.github/scripts/check-quality.js`",
+              "to": "`.github/scripts/check-quality/`"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "repo": "Significant-Gravitas/AutoGPT",
+      "stars": 188035,
+      "path": "AGENTS.md",
+      "line": 68,
+      "rule": "stale-path",
+      "ref": "usePageName.ts",
+      "text": "- Add `usePageName.ts` hook for logic",
+      "reclaimableTokens": 12,
+      "before": "1. **Pages**: Create in `src/app/(platform)/feature-name/page.tsx`",
+      "after": "   - Put sub-components in local `components/` folder",
+      "evidence": {
+        "asDirectory": [],
+        "renamed": []
+      },
+      "review": {
+        "status": "not-a-defect",
+        "reason": "This is the scaffolding template for a new feature, not a reference to a file that should be in the repository. 'Add `usePageName.ts` hook for logic' tells a generator what to create."
+      },
+      "reason": "This is the scaffolding template for a new feature, not a reference to a file that should be in the repository. 'Add `usePageName.ts` hook for logic' tells a generator what to create."
+    },
+    {
+      "repo": "Significant-Gravitas/AutoGPT",
+      "stars": 188035,
+      "path": "AGENTS.md",
+      "line": 70,
+      "rule": "stale-path",
+      "ref": "useComponentName.ts",
+      "text": "2. **Components**: Structure as `ComponentName/ComponentName.tsx` + `useComponentName.ts` + `helpers.ts`",
+      "reclaimableTokens": 60,
+      "before": "   - Put sub-components in local `components/` folder",
+      "after": "   - Use design system components from `src/components/` (atoms, molecules, organisms)",
+      "evidence": {
+        "asDirectory": [],
+        "renamed": []
+      },
+      "review": {
+        "status": "not-a-defect",
+        "reason": "This is a naming pattern: ComponentName/ComponentName.tsx and useComponentName.ts show the shape of a component and its hook. The repeated placeholder is the tell."
+      },
+      "reason": "This is a naming pattern: ComponentName/ComponentName.tsx and useComponentName.ts show the shape of a component and its hook. The repeated placeholder is the tell."
+    },
+    {
+      "repo": "morluto/rea",
+      "stars": 461130,
+      "path": "AGENTS.md",
+      "line": 149,
+      "rule": "stale-path",
+      "ref": "turbo.jsonc",
+      "text": "This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `\"agentGuidance\": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.",
+      "reclaimableTokens": 138,
+      "before": "",
+      "after": "<!-- END:turborepo-agent-rules -->",
+      "evidence": {
+        "asDirectory": [],
+        "renamed": [
+          "turbo.json"
+        ]
+      },
+      "review": {
+        "status": "not-a-defect",
+        "reason": "The line offers a choice: put the setting in turbo.json or turbo.jsonc. turbo.json exists, so the instruction resolves. A reference that is one of two alternatives is not dead because the other alternative is the one in use."
+      },
+      "reason": "The line offers a choice: put the setting in turbo.json or turbo.jsonc. turbo.json exists, so the instruction resolves. A reference that is one of two alternatives is not dead because the other alternative is the one in use."
+    }
+  ],
+  "unreviewed": [],
+  "unscanned": [
+    {
+      "repo": "openclaw/openclaw",
+      "reason": "GitHub truncated the file tree, so absence cannot be proved"
+    },
+    {
+      "repo": "torvalds/linux",
+      "reason": "GitHub truncated the file tree, so absence cannot be proved"
+    }
+  ]
+}

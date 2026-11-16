@@ -1,0 +1,6 @@
+{
+  "budgets": {
+    "total": 2000
+  },
+  "failOn": "increase"
+}

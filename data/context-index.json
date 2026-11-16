@@ -1,0 +1,194 @@
+{
+  "name": "The Context Budget Index",
+  "month": "2026-11",
+  "fetched": "2026-11-15",
+  "tokenizer": "gpt-tokenizer@3.0.1",
+  "unit": "file",
+  "measured": 30,
+  "repositories": 25,
+  "source": "leaderboard/2026-11.json",
+  "files": [
+    {
+      "repo": "n8n-io/n8n",
+      "path": "AGENTS.md",
+      "tokens": 6249
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "path": "AGENTS.md",
+      "tokens": 4335
+    },
+    {
+      "repo": "openclaw/openclaw",
+      "path": "AGENTS.md",
+      "tokens": 4124
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "path": "AGENTS.md",
+      "tokens": 4025
+    },
+    {
+      "repo": "Significant-Gravitas/AutoGPT",
+      "path": "AGENTS.md",
+      "tokens": 3665
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "path": "AGENTS.md",
+      "tokens": 2891
+    },
+    {
+      "repo": "affaan-m/ECC",
+      "path": "AGENTS.md",
+      "tokens": 2794
+    },
+    {
+      "repo": "morluto/rea",
+      "path": "AGENTS.md",
+      "tokens": 2691
+    },
+    {
+      "repo": "f/prompts.chat",
+      "path": "AGENTS.md",
+      "tokens": 2226
+    },
+    {
+      "repo": "obra/superpowers",
+      "path": "AGENTS.md",
+      "tokens": 2056
+    },
+    {
+      "repo": "twbs/bootstrap",
+      "path": "AGENTS.md",
+      "tokens": 2026
+    },
+    {
+      "repo": "ultraworkers/claw-code",
+      "path": "AGENTS.md",
+      "tokens": 1643
+    },
+    {
+      "repo": "huggingface/transformers",
+      "path": "AGENTS.md → .ai/AGENTS.md",
+      "tokens": 1482
+    },
+    {
+      "repo": "torvalds/linux",
+      "path": "AGENTS.md → README",
+      "tokens": 1265
+    },
+    {
+      "repo": "mattpocock/skills",
+      "path": "CLAUDE.md",
+      "tokens": 1041
+    },
+    {
+      "repo": "affaan-m/ECC",
+      "path": "CLAUDE.md",
+      "tokens": 1027
+    },
+    {
+      "repo": "avelino/awesome-go",
+      "path": "AGENTS.md",
+      "tokens": 774
+    },
+    {
+      "repo": "TheAlgorithms/Python",
+      "path": "AGENTS.md",
+      "tokens": 688
+    },
+    {
+      "repo": "DietrichGebert/ponytail",
+      "path": "AGENTS.md",
+      "tokens": 597
+    },
+    {
+      "repo": "f/prompts.chat",
+      "path": "CLAUDE.md",
+      "tokens": 571
+    },
+    {
+      "repo": "multica-ai/andrej-karpathy-skills",
+      "path": "CLAUDE.md",
+      "tokens": 534
+    },
+    {
+      "repo": "vinta/awesome-python",
+      "path": "AGENTS.md",
+      "tokens": 436
+    },
+    {
+      "repo": "firecrawl/firecrawl",
+      "path": "CLAUDE.md",
+      "tokens": 420
+    },
+    {
+      "repo": "langgenius/dify",
+      "path": "AGENTS.md",
+      "tokens": 394
+    },
+    {
+      "repo": "firecrawl/firecrawl",
+      "path": "AGENTS.md",
+      "tokens": 370
+    },
+    {
+      "repo": "ultraworkers/claw-code",
+      "path": "CLAUDE.md",
+      "tokens": 250
+    },
+    {
+      "repo": "ollama/ollama",
+      "path": "AGENTS.md",
+      "tokens": 91
+    },
+    {
+      "repo": "react/react",
+      "path": "CLAUDE.md",
+      "tokens": 87
+    },
+    {
+      "repo": "microsoft/vscode",
+      "path": "AGENTS.md",
+      "tokens": 51
+    },
+    {
+      "repo": "ollama/ollama",
+      "path": "CLAUDE.md",
+      "tokens": 21
+    }
+  ],
+  "tokens": [
+    21,
+    51,
+    87,
+    91,
+    250,
+    370,
+    394,
+    420,
+    436,
+    534,
+    571,
+    597,
+    688,
+    774,
+    1027,
+    1041,
+    1265,
+    1482,
+    1643,
+    2026,
+    2056,
+    2226,
+    2691,
+    2794,
+    2891,
+    3665,
+    4025,
+    4124,
+    4335,
+    6249
+  ]
+}

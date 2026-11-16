@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx -y ctxcap@1.5.1 hook post-edit",
+            "command": "npx -y ctxcap@1.6.0 hook post-edit",
             "timeout": 60
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx -y ctxcap@1.5.1 hook stop",
+            "command": "npx -y ctxcap@1.6.0 hook stop",
             "timeout": 60
           }
         ]
@@ -25,6 +25,6 @@
     ]
   },
   "_ctxcap": {
-    "version": "1.5.1"
+    "version": "1.6.0"
   }
 }

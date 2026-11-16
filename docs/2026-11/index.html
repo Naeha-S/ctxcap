@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>What the most-starred repositories spend on agent instructions, November 2026</title>
+<title>The Context Budget Index: what the most-starred repositories spend on agent instructions, November 2026</title>
 <meta name="description" content="56 of GitHub's most-starred repositories were checked. 25 have an AGENTS.md or CLAUDE.md at the root. This is what those files cost in tokens.">
 <link rel="canonical" href="https://naeha-s.github.io/ctxcap/2026-11/">
 <meta property="og:type" content="article">
-<meta property="og:title" content="What the most-starred repositories spend on agent instructions, November 2026">
+<meta property="og:site_name" content="The Context Budget Index">
+<meta property="og:title" content="The Context Budget Index: what the most-starred repositories spend on agent instructions, November 2026">
 <meta property="og:description" content="56 of GitHub's most-starred repositories were checked. 25 have an AGENTS.md or CLAUDE.md at the root. This is what those files cost in tokens.">
 <meta property="og:url" content="https://naeha-s.github.io/ctxcap/2026-11/">
 <meta property="og:image" content="https://naeha-s.github.io/ctxcap/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<style>
-  :root { --bg:#fbfaf7; --fg:#1c1b19; --muted:#6b675f; --line:#e4e0d8; --bar:#c2410c; --bar-small:#4d7c0f; --link:#1d4ed8; --card:#ffffff; }
+<style>  :root { --bg:#fbfaf7; --fg:#1c1b19; --muted:#6b675f; --line:#e4e0d8; --bar:#c2410c; --bar-small:#4d7c0f; --link:#1d4ed8; --card:#ffffff; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#141413; --fg:#ecebe7; --muted:#a09c93; --line:#2e2d2a; --bar:#fb923c; --bar-small:#a3e635; --link:#93c5fd; --card:#1c1c1a; }
   }
@@ -62,13 +62,23 @@
     .stars { display: none; }
     .tokens { width: 30%; }
   }
+  .compare { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 24px 0 8px; }
+  .compare h2 { margin: 0 0 6px; font-size: 19px; }
+  .compare p { margin: 0 0 12px; color: var(--muted); font-size: 15px; max-width: 42em; }
+  .compare form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .compare label { display: block; font-size: 14px; color: var(--muted); }
+  .compare input { width: 11em; padding: 8px 10px; font: inherit; font-variant-numeric: tabular-nums; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; }
+  .compare button { padding: 9px 14px; font: inherit; font-weight: 600; color: var(--bg); background: var(--fg); border: 0; border-radius: 7px; cursor: pointer; }
+  .compare output { flex-basis: 100%; min-height: 1.6em; font-variant-numeric: tabular-nums; }
+  .compare output b { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 <main>
-  <p class="kicker">November 2026 · updated monthly · counted with <a href="https://github.com/Naeha-S/ctxcap">ctxcap</a></p>
-  <h1>What the most-starred repositories spend on agent instructions</h1>
-  <p class="lede">An <code translate="no">AGENTS.md</code> or <code translate="no">CLAUDE.md</code> is read by a coding agent at the start of every session. Whatever it weighs is spent again each time, before the agent has looked at a line of code. This page counts that weight for the most-starred repositories on GitHub that have one.</p>
+  <p class="kicker">The Context Budget Index · November 2026 · updated monthly · counted with <a href="https://github.com/Naeha-S/ctxcap">ctxcap</a></p>
+  <h1>The Context Budget Index</h1>
+  <p class="lede">What the most-starred repositories on GitHub spend on agent instructions. An <code translate="no">AGENTS.md</code> or <code translate="no">CLAUDE.md</code> is read by a coding agent at the start of every session. Whatever it weighs is spent again each time, before the agent has looked at a line of code. This page counts that weight.</p>
+  <p class="small">A named index, rebuilt once a month. The address above always shows the newest month; every month has a permanent page. Cite the month, not the front page.</p>
 
   <ul class="stats">
     <li><b>25 of 56</b><span>most-starred repositories have one at the root</span></li>
@@ -78,6 +88,16 @@
   </ul>
   <p class="note">This is a sample, not a ranking of GitHub: it is the first 25 repositories with such a file, going down from the most stars. A large file is not a bad file. Six thousand tokens of rules an agent needs are well spent, and the table says what each file costs, not whether it is worth it.</p>
   <p class="note">The cost is not the money, which comes to cents. It is the room: these tokens sit in the context window for the whole session, taken before the agent has read any code.</p>
+  <section class="compare" aria-labelledby="compare-title">
+    <h2 id="compare-title">Where does your file sit?</h2>
+    <p>Enter the token count of one context file. It is placed against the 30 files in this month's index. The same lookup is built into the tool: <code translate="no">npx ctxcap --compare</code>.</p>
+    <form id="percentile-form">
+      <div><label for="tokens">Tokens</label><input id="tokens" name="tokens" type="number" min="0" step="1" inputmode="numeric" placeholder="4100" required></div>
+      <button type="submit">Find the percentile</button>
+      <output id="percentile-result" for="tokens" aria-live="polite"></output>
+    </form>
+    <noscript><p>This form needs JavaScript. In your repository, <code translate="no">npx ctxcap --compare</code> prints the same line without a browser.</p></noscript>
+  </section>
   <p class="small">This is the permanent page for November 2026. <a href="../">The newest month is here.</a></p>
 
   <h2>30 files in 25 repositories, largest first</h2>
@@ -272,6 +292,10 @@
     </tbody>
   </table>
 
+  <p class="small">A common guess is that the best-maintained projects write the least. <a href="https://github.com/Naeha-S/ctxcap/blob/main/leaderboard/README.md#the-correlation">The numbers do not support it</a>: size and stars move together weakly, if at all.</p>
+
+  <p class="small">Also in this index: <a href="../mcp/">the MCP Context Cost Index</a> — what tool definitions cost before the first message — and <a href="../receipts/">stale-reference receipts</a> — dead paths in other repositories' context files, checked by hand.</p>
+
   <h2>How it was counted</h2>
   <ul class="method">
     <li>The 56 most-starred repositories that are not archived were checked in star order, stopping at the 25th with a context file. Stopping on a hit slightly overstates the 45% rate.</li>
@@ -288,5 +312,27 @@
 npx ctxcap --stale    # references in them that no longer resolve</pre>
   <p class="small">Data for this month: <a href="https://github.com/Naeha-S/ctxcap/blob/main/leaderboard/2026-11.json">2026-11.json</a>. <a href="https://github.com/Naeha-S/ctxcap/blob/main/leaderboard/README.md">Method and how to rebuild it.</a> Something wrong with your repository's row? <a href="https://github.com/Naeha-S/ctxcap/issues">Open an issue.</a></p>
 </main>
+<script>
+(() => {
+  // The same values and the same rule as src/compare.js: a file's percentile
+  // is the share of measured files at or below it. No network, no dependency.
+  const values = [6249,4335,4124,4025,3665,2891,2794,2691,2226,2056,2026,1643,1482,1265,1041,1027,774,688,597,571,534,436,420,394,370,250,91,87,51,21];
+  const month = "November 2026";
+  const form = document.getElementById('percentile-form');
+  const input = document.getElementById('tokens');
+  const output = document.getElementById('percentile-result');
+  if (!form || !input || !output) return;
+  const ordinal = (n) => (n % 100 >= 11 && n % 100 <= 13 ? n + 'th' : n + (['th', 'st', 'nd', 'rd'][n % 10] || 'th'));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const tokens = Number(input.value);
+    if (!Number.isFinite(tokens) || tokens < 0) return;
+    const atOrBelow = values.filter((value) => value <= tokens).length;
+    const percentile = Math.round((atOrBelow / values.length) * 100);
+    output.textContent = tokens.toLocaleString('en-US') + ' tokens — larger than ' + atOrBelow + ' of ' + values.length
+      + ' context files measured, the ' + ordinal(percentile) + ' percentile. (' + month + ')';
+  });
+})();
+</script>
 </body>
 </html>

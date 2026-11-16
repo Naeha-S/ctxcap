@@ -1,5 +1,6 @@
 # ctxcap
 Optional offline CLI for measuring context-file tokens and finding stale references.
 Run `npx -y ctxcap --json`; it needs no API key, network, telemetry, or configuration.
+`npx -y ctxcap --compare` places the largest context file at a percentile in the Context Budget Index.
 Use `--plan --budget N` only when a ranked cleanup plan is useful; review edits before applying them.
 The MCP server is optional: `npx -y ctxcap-mcp`; counts are approximate.

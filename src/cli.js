@@ -15,11 +15,13 @@ const HELP = `ctxcap — token budget linter for context files
 Usage: ctxcap [options]
        ctxcap init [--yes] [--print] [--agents <list>] [--remove] [--no-pin] [--force]
        ctxcap doctor [--json]
+       ctxcap roast [--json] [--stale]
 
   --json              machine-readable report on stdout
   --sarif             SARIF 2.1.0 on stdout
   --suggest           include compression suggestions
   --fail-on <mode>    increase | budget | stale | never  (default: never)
+  --compare           print the largest file's percentile in the index
   --stale             find dead paths, commands, globs, and references
   --stale-glob        include globs that match no files
   --stale-fix         print a deletion diff for stale findings (never writes)
@@ -46,7 +48,7 @@ Exit: 0 clean, 1 breach under --fail-on, 2 internal error.
 No network. No telemetry. No API key.`;
 
 function parseArgs(argv) {
-  const o = { json: false, sarif: false, suggest: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, budgetClasses: {}, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, badge: false, failOn: null, baseline: null, config: null, root: '.' };
+  const o = { json: false, sarif: false, suggest: false, compare: false, stale: false, staleGlob: false, staleFix: false, plan: false, apply: false, verify: null, budget: null, budgetClasses: {}, strictPreserve: false, maxCondenseChars: 320, minTokens: 20, updateBaseline: false, badge: false, failOn: null, baseline: null, config: null, root: '.' };
   const need = (i, flag) => {
     if (i + 1 >= argv.length) throw new Error(`${flag} needs a value`);
     return argv[i + 1];
@@ -56,6 +58,7 @@ function parseArgs(argv) {
     if (a === '--json') o.json = true;
     else if (a === '--sarif') o.sarif = true;
     else if (a === '--suggest') o.suggest = true;
+    else if (a === '--compare') o.compare = true;
     else if (a === '--stale') o.stale = true;
     else if (a === '--stale-glob') { o.stale = true; o.staleGlob = true; }
     else if (a === '--stale-fix') { o.stale = true; o.staleFix = true; }
@@ -169,9 +172,16 @@ export async function main(argv) {
     budgetClasses: opts.budgetClasses
   });
 
+  let comparisonLine = null;
+  if (opts.compare) {
+    const { compareFiles, compareLine } = await import('./compare.js');
+    report.comparison = compareFiles(files);
+    comparisonLine = compareLine(report.comparison);
+  }
+
   if (opts.sarif) console.log(JSON.stringify(renderSarif(report), null, 2));
   else if (opts.json) console.log(JSON.stringify(report, null, 2));
-  else console.log(renderText(report));
+  else console.log(comparisonLine ? `${renderText(report)}\n${comparisonLine}` : renderText(report));
 
   return exitCodeFor(report, config.failOn);
 }

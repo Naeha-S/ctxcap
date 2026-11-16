@@ -1,0 +1,198 @@
+{
+  "title": "The MCP Context Cost Index",
+  "month": "2026-11",
+  "measured": "2026-11-16",
+  "tokenizer": "gpt-tokenizer@3.0.1",
+  "ctxcapVersion": "1.5.1",
+  "method": {
+    "transport": "stdio",
+    "protocol": "2024-11-05",
+    "counted": [
+      "name",
+      "description",
+      "inputSchema"
+    ],
+    "excluded": [
+      "title",
+      "annotations",
+      "outputSchema"
+    ],
+    "note": "One tools/list call per server at startup, with placeholder credentials. Tool sets that require configuration to appear are not counted."
+  },
+  "servers": 16,
+  "tools": 281,
+  "rows": [
+    {
+      "rank": 1,
+      "name": "Sentry",
+      "package": "@sentry/mcp-server",
+      "version": "0.49.0",
+      "tools": 73,
+      "bytes": 198049,
+      "tokens": 46512,
+      "note": "Default skill set. --skills or --disable-skills can expose fewer tools."
+    },
+    {
+      "rank": 2,
+      "name": "Firecrawl",
+      "package": "firecrawl-mcp",
+      "version": "3.40.0",
+      "tools": 32,
+      "bytes": 76469,
+      "tokens": 17764
+    },
+    {
+      "rank": 3,
+      "name": "Notion",
+      "package": "@notionhq/notion-mcp-server",
+      "version": "2.6.1",
+      "tools": 24,
+      "bytes": 74666,
+      "tokens": 17163
+    },
+    {
+      "rank": 4,
+      "name": "Chrome DevTools",
+      "package": "chrome-devtools-mcp",
+      "version": "1.13.0",
+      "tools": 33,
+      "bytes": 30285,
+      "tokens": 6753,
+      "note": "Needs a Chrome install only to call a tool; tools/list is answered without one."
+    },
+    {
+      "rank": 5,
+      "name": "Playwright",
+      "package": "@playwright/mcp",
+      "version": "0.0.85",
+      "tools": 25,
+      "bytes": 18482,
+      "tokens": 3936,
+      "note": "Needs a browser only to call a tool; tools/list is answered without one."
+    },
+    {
+      "rank": 6,
+      "name": "GitHub",
+      "package": "@modelcontextprotocol/server-github",
+      "version": "2025.4.8",
+      "tools": 26,
+      "bytes": 15854,
+      "tokens": 3548,
+      "note": "Archived by its maintainers in 2025; still widely installed."
+    },
+    {
+      "rank": 7,
+      "name": "Filesystem",
+      "package": "@modelcontextprotocol/server-filesystem",
+      "version": "1.0.0",
+      "tools": 14,
+      "bytes": 8057,
+      "tokens": 1695,
+      "note": "Reference server. The allowed directory changes what it may read, not the tool definitions."
+    },
+    {
+      "rank": 8,
+      "name": "Everything",
+      "package": "@modelcontextprotocol/server-everything",
+      "version": "1.0.0",
+      "tools": 13,
+      "bytes": 4941,
+      "tokens": 1082,
+      "note": "Reference server used to exercise protocol features, not a production tool."
+    },
+    {
+      "rank": 9,
+      "name": "Context7",
+      "package": "@upstash/context7-mcp",
+      "version": "4.7.0",
+      "tools": 2,
+      "bytes": 4947,
+      "tokens": 1065
+    },
+    {
+      "rank": 10,
+      "name": "Exa",
+      "package": "exa-mcp-server",
+      "version": "3.4.3",
+      "tools": 3,
+      "bytes": 4765,
+      "tokens": 1058
+    },
+    {
+      "rank": 11,
+      "name": "Memory",
+      "package": "@modelcontextprotocol/server-memory",
+      "version": "1.0.0",
+      "tools": 9,
+      "bytes": 4422,
+      "tokens": 957
+    },
+    {
+      "rank": 12,
+      "name": "Slack",
+      "package": "@modelcontextprotocol/server-slack",
+      "version": "2025.4.25",
+      "tools": 8,
+      "bytes": 3116,
+      "tokens": 681
+    },
+    {
+      "rank": 13,
+      "name": "Puppeteer",
+      "package": "@modelcontextprotocol/server-puppeteer",
+      "version": "2025.5.12",
+      "tools": 7,
+      "bytes": 2448,
+      "tokens": 540
+    },
+    {
+      "rank": 14,
+      "name": "ctxcap",
+      "package": null,
+      "version": "1.5.1",
+      "tools": 4,
+      "bytes": 2388,
+      "tokens": 507,
+      "note": "This repository's own server, measured from mcp/server.js."
+    },
+    {
+      "rank": 15,
+      "name": "Brave Search",
+      "package": "@modelcontextprotocol/server-brave-search",
+      "version": "0.6.2",
+      "tools": 2,
+      "bytes": 1451,
+      "tokens": 319
+    },
+    {
+      "rank": 16,
+      "name": "Browserbase",
+      "package": "@browserbasehq/mcp",
+      "version": "3.0.0",
+      "tools": 6,
+      "bytes": 1330,
+      "tokens": 310,
+      "note": "Its maintainers have marked the package unmaintained."
+    }
+  ],
+  "unmeasured": [
+    {
+      "name": "Supabase",
+      "package": "@supabase/mcp-server-supabase",
+      "version": "0.17.0",
+      "reason": "Exposes no tools until a project is linked, so there is nothing to measure at startup."
+    },
+    {
+      "name": "Cloudflare",
+      "package": "@cloudflare/mcp-server-cloudflare",
+      "version": "0.2.0",
+      "reason": "Requires a product name as a subcommand; there is no single default tool list."
+    },
+    {
+      "name": "Redis",
+      "package": "@modelcontextprotocol/server-redis",
+      "version": "2025.4.25",
+      "reason": "Connects to Redis before answering initialize, so it does not start without a reachable database."
+    }
+  ]
+}

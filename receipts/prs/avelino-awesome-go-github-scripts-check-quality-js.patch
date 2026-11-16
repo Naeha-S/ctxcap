@@ -1,0 +1,7 @@
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -37,3 +37,3 @@
+ - For list-only modifications, run linting/formatting on touched files if tools are configured locally.
+-- The `PR Quality Checks` workflow will run `.github/scripts/check-quality.js`; ensure referenced links in PR bodies are reachable.
++- The `PR Quality Checks` workflow will run `.github/scripts/check-quality/`; ensure referenced links in PR bodies are reachable.
+ 

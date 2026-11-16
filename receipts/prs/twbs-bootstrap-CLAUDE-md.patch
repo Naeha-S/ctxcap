@@ -1,0 +1,7 @@
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -2,3 +2,3 @@
+ 
+-Guidance for AI coding agents working in this repository. Tool-agnostic; `CLAUDE.md` points here.
++Guidance for AI coding agents working in this repository. Tool-agnostic.
+ 

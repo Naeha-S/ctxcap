@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The MCP Context Cost Index, November 2026: what MCP servers cost in context</title>
+<meta name="description" content="16 MCP servers start a session with 281 tool definitions between them. The largest costs 46,512 tokens before the first message.">
+<link rel="canonical" href="https://naeha-s.github.io/ctxcap/mcp/2026-11/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="The MCP Context Cost Index">
+<meta property="og:title" content="The MCP Context Cost Index, November 2026: what MCP servers cost in context">
+<meta property="og:description" content="16 MCP servers start a session with 281 tool definitions between them. The largest costs 46,512 tokens before the first message.">
+<meta property="og:url" content="https://naeha-s.github.io/ctxcap/mcp/2026-11/">
+<meta property="og:image" content="https://naeha-s.github.io/ctxcap/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>  :root { --bg:#fbfaf7; --fg:#1c1b19; --muted:#6b675f; --line:#e4e0d8; --bar:#c2410c; --bar-small:#4d7c0f; --link:#1d4ed8; --card:#ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141413; --fg:#ecebe7; --muted:#a09c93; --line:#2e2d2a; --bar:#fb923c; --bar-small:#a3e635; --link:#93c5fd; --card:#1c1c1a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 20px 80px; }
+  a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .kicker { color: var(--muted); font-size: 14px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 12px; }
+  .kicker a { color: inherit; }
+  h1 { font-size: clamp(30px, 5.2vw, 46px); line-height: 1.12; letter-spacing: -.02em; margin: 0 0 20px; }
+  h2 { font-size: 22px; letter-spacing: -.01em; margin: 56px 0 8px; }
+  p { margin: 0 0 16px; }
+  .lede { font-size: 20px; line-height: 1.5; max-width: 40em; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 32px 0 16px; padding: 0; list-style: none; }
+  .stats li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stats b { display: block; font-size: 28px; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stats span { color: var(--muted); font-size: 14px; line-height: 1.35; display: block; margin-top: 4px; }
+  .note { max-width: 44em; }
+  .small { color: var(--muted); font-size: 15px; max-width: 46em; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 0; font-variant-numeric: tabular-nums; }
+  thead th { text-align: left; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .num { text-align: right; white-space: nowrap; }
+  thead th.num { text-align: right; }
+  .rank { width: 2.2em; color: var(--muted); }
+  .repo a { font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+  .repo a:hover { text-decoration: underline; }
+  .file { display: block; color: var(--muted); font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .stars { color: var(--muted); }
+  .tokens { width: 36%; padding-right: 0; }
+  .tokens .n { display: block; font-weight: 600; line-height: 1.3; }
+  .tokens .bar { display: block; height: 8px; margin-top: 4px; border-radius: 3px; background: var(--bar); }
+  .under .tokens .bar { background: var(--bar-small); }
+  .divider th { text-align: left; font-size: 15px; font-weight: 600; padding: 28px 0 10px; border-bottom: 1px solid var(--line); }
+  .divider span { display: block; font-weight: 400; color: var(--muted); }
+  ul.method { padding-left: 1.2em; margin: 0 0 16px; }
+  ul.method li { margin: 0 0 10px; max-width: 46em; }
+  code, pre { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 4px; }
+  code { padding: 1px 5px; }
+  pre { padding: 12px 14px; overflow-x: auto; max-width: 46em; margin: 0 0 16px; }
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stars { display: none; }
+    .tokens { width: 30%; }
+  }
+  .compare { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 24px 0 8px; }
+  .compare h2 { margin: 0 0 6px; font-size: 19px; }
+  .compare p { margin: 0 0 12px; color: var(--muted); font-size: 15px; max-width: 42em; }
+  .compare form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .compare label { display: block; font-size: 14px; color: var(--muted); }
+  .compare input { width: 11em; padding: 8px 10px; font: inherit; font-variant-numeric: tabular-nums; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; }
+  .compare button { padding: 9px 14px; font: inherit; font-weight: 600; color: var(--bg); background: var(--fg); border: 0; border-radius: 7px; cursor: pointer; }
+  .compare output { flex-basis: 100%; min-height: 1.6em; font-variant-numeric: tabular-nums; }
+  .compare output b { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker"><a href="../../">The Context Budget Index</a> · The MCP Context Cost Index · November 2026 · updated monthly · counted with <a href="https://github.com/Naeha-S/ctxcap">ctxcap</a></p>
+  <h1>The MCP Context Cost Index</h1>
+  <p class="lede">Every MCP server a client connects sends its tool definitions in every session, before the model has been asked anything. The definitions are billed to the context window, and most people never see the bill. This page is the bill.</p>
+
+  <ul class="stats">
+    <li><b>16</b><span>servers measured over stdio</span></li>
+    <li><b>281</b><span>tool definitions between them</span></li>
+    <li><b>1,074</b><span>tokens in the median server</span></li>
+    <li><b>46,512</b><span>in the largest, Sentry</span></li>
+  </ul>
+
+  <p class="note">This is not a ranking of quality. A server with 73 tools can do more than one with two, and a large schema is sometimes the honest way to describe a large API. What the table measures is what it costs to have that server switched on: tokens that sit in the context window for the whole session. A server nobody calls still pays.</p>
+  <p class="note">The comparison column is against <a href="https://github.com/Naeha-S/ctxcap">ctxcap's own server</a>, which exposes four tools: measure, plan, verify, and trim. It exposes four tools and sits near the bottom of the table at 507 tokens. That is the point of the reference in the README: a server that answers four questions can cost 507 tokens, while one that answers many can cost 46,512 before it is asked anything.</p>
+  <p class="small">This is the permanent page for November 2026. <a href="../">The newest month is here.</a></p>
+
+  <h2>16 servers, largest first</h2>
+  <table>
+    <thead>
+      <tr><th class="rank" scope="col">#</th><th scope="col">Server and package</th><th class="num" scope="col">Tools</th><th scope="col">Tokens</th><th class="num" scope="col">× ctxcap</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td class="rank">1</td>
+          <td class="repo"><span translate="no" class="notranslate">Sentry</span><span class="file" translate="no" class="notranslate">@sentry/mcp-server@0.49.0</span></td>
+          <td class="num">73</td>
+          <td class="tokens"><span class="n">46,512</span><span class="bar" style="width:100.0%"></span></td>
+          <td class="num">92×</td>
+        </tr>
+        <tr>
+          <td class="rank">2</td>
+          <td class="repo"><span translate="no" class="notranslate">Firecrawl</span><span class="file" translate="no" class="notranslate">firecrawl-mcp@3.40.0</span></td>
+          <td class="num">32</td>
+          <td class="tokens"><span class="n">17,764</span><span class="bar" style="width:38.2%"></span></td>
+          <td class="num">35×</td>
+        </tr>
+        <tr>
+          <td class="rank">3</td>
+          <td class="repo"><span translate="no" class="notranslate">Notion</span><span class="file" translate="no" class="notranslate">@notionhq/notion-mcp-server@2.6.1</span></td>
+          <td class="num">24</td>
+          <td class="tokens"><span class="n">17,163</span><span class="bar" style="width:36.9%"></span></td>
+          <td class="num">34×</td>
+        </tr>
+        <tr>
+          <td class="rank">4</td>
+          <td class="repo"><span translate="no" class="notranslate">Chrome DevTools</span><span class="file" translate="no" class="notranslate">chrome-devtools-mcp@1.13.0</span></td>
+          <td class="num">33</td>
+          <td class="tokens"><span class="n">6,753</span><span class="bar" style="width:14.5%"></span></td>
+          <td class="num">13×</td>
+        </tr>
+        <tr>
+          <td class="rank">5</td>
+          <td class="repo"><span translate="no" class="notranslate">Playwright</span><span class="file" translate="no" class="notranslate">@playwright/mcp@0.0.85</span></td>
+          <td class="num">25</td>
+          <td class="tokens"><span class="n">3,936</span><span class="bar" style="width:8.5%"></span></td>
+          <td class="num">7.8×</td>
+        </tr>
+        <tr>
+          <td class="rank">6</td>
+          <td class="repo"><span translate="no" class="notranslate">GitHub</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-github@2025.4.8</span></td>
+          <td class="num">26</td>
+          <td class="tokens"><span class="n">3,548</span><span class="bar" style="width:7.6%"></span></td>
+          <td class="num">7.0×</td>
+        </tr>
+        <tr>
+          <td class="rank">7</td>
+          <td class="repo"><span translate="no" class="notranslate">Filesystem</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-filesystem@1.0.0</span></td>
+          <td class="num">14</td>
+          <td class="tokens"><span class="n">1,695</span><span class="bar" style="width:3.6%"></span></td>
+          <td class="num">3.3×</td>
+        </tr>
+        <tr>
+          <td class="rank">8</td>
+          <td class="repo"><span translate="no" class="notranslate">Everything</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-everything@1.0.0</span></td>
+          <td class="num">13</td>
+          <td class="tokens"><span class="n">1,082</span><span class="bar" style="width:2.3%"></span></td>
+          <td class="num">2.1×</td>
+        </tr>
+        <tr>
+          <td class="rank">9</td>
+          <td class="repo"><span translate="no" class="notranslate">Context7</span><span class="file" translate="no" class="notranslate">@upstash/context7-mcp@4.7.0</span></td>
+          <td class="num">2</td>
+          <td class="tokens"><span class="n">1,065</span><span class="bar" style="width:2.3%"></span></td>
+          <td class="num">2.1×</td>
+        </tr>
+        <tr>
+          <td class="rank">10</td>
+          <td class="repo"><span translate="no" class="notranslate">Exa</span><span class="file" translate="no" class="notranslate">exa-mcp-server@3.4.3</span></td>
+          <td class="num">3</td>
+          <td class="tokens"><span class="n">1,058</span><span class="bar" style="width:2.3%"></span></td>
+          <td class="num">2.1×</td>
+        </tr>
+        <tr>
+          <td class="rank">11</td>
+          <td class="repo"><span translate="no" class="notranslate">Memory</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-memory@1.0.0</span></td>
+          <td class="num">9</td>
+          <td class="tokens"><span class="n">957</span><span class="bar" style="width:2.1%"></span></td>
+          <td class="num">1.9×</td>
+        </tr>
+        <tr>
+          <td class="rank">12</td>
+          <td class="repo"><span translate="no" class="notranslate">Slack</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-slack@2025.4.25</span></td>
+          <td class="num">8</td>
+          <td class="tokens"><span class="n">681</span><span class="bar" style="width:1.5%"></span></td>
+          <td class="num">1.3×</td>
+        </tr>
+        <tr>
+          <td class="rank">13</td>
+          <td class="repo"><span translate="no" class="notranslate">Puppeteer</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-puppeteer@2025.5.12</span></td>
+          <td class="num">7</td>
+          <td class="tokens"><span class="n">540</span><span class="bar" style="width:1.2%"></span></td>
+          <td class="num">1.1×</td>
+        </tr>
+        <tr>
+          <td class="rank">14</td>
+          <td class="repo"><span translate="no" class="notranslate">ctxcap</span><span class="file" translate="no" class="notranslate">this repository</span></td>
+          <td class="num">4</td>
+          <td class="tokens"><span class="n">507</span><span class="bar" style="width:1.1%"></span></td>
+          <td class="num">1.0×</td>
+        </tr>
+        <tr>
+          <td class="rank">15</td>
+          <td class="repo"><span translate="no" class="notranslate">Brave Search</span><span class="file" translate="no" class="notranslate">@modelcontextprotocol/server-brave-search@0.6.2</span></td>
+          <td class="num">2</td>
+          <td class="tokens"><span class="n">319</span><span class="bar" style="width:0.7%"></span></td>
+          <td class="num">0.6×</td>
+        </tr>
+        <tr>
+          <td class="rank">16</td>
+          <td class="repo"><span translate="no" class="notranslate">Browserbase</span><span class="file" translate="no" class="notranslate">@browserbasehq/mcp@3.0.0</span></td>
+          <td class="num">6</td>
+          <td class="tokens"><span class="n">310</span><span class="bar" style="width:0.7%"></span></td>
+          <td class="num">0.6×</td>
+        </tr>
+    </tbody>
+  </table>
+  <p class="small">Measured 2026-11-16. 310 tokens is the smallest: Browserbase. The largest is 46,512, 92× ctxcap's server. <a href="https://github.com/Naeha-S/ctxcap/blob/main/mcp-index/2026-11.json">The data.</a></p>
+
+  <h2>Not measured</h2>
+  <p class="note">These are popular servers, but there is no honest single number for them. They are listed with the reason rather than dropped.</p>
+  <ul class="method">
+    <li><span translate="no" class="notranslate">Supabase</span> (<code translate="no" class="notranslate">@supabase/mcp-server-supabase@0.17.0</code>) — Exposes no tools until a project is linked, so there is nothing to measure at startup.</li>
+    <li><span translate="no" class="notranslate">Cloudflare</span> (<code translate="no" class="notranslate">@cloudflare/mcp-server-cloudflare@0.2.0</code>) — Requires a product name as a subcommand; there is no single default tool list.</li>
+    <li><span translate="no" class="notranslate">Redis</span> (<code translate="no" class="notranslate">@modelcontextprotocol/server-redis@2025.4.25</code>) — Connects to Redis before answering initialize, so it does not start without a reachable database.</li>
+  </ul>
+
+  <h2>How it was counted</h2>
+  <ul class="method">
+    <li>Each server was installed from npm at the version pinned in <a href="https://github.com/Naeha-S/ctxcap/blob/main/scripts/mcp-servers.json"><code translate="no" class="notranslate">scripts/mcp-servers.json</code></a>, started over stdio, sent <code translate="no" class="notranslate">initialize</code> and <code translate="no" class="notranslate">tools/list</code>, and stopped. No tool was called and no conversation was started.</li>
+    <li>The count covers <code translate="no" class="notranslate">name</code>, <code translate="no" class="notranslate">description</code>, and <code translate="no" class="notranslate">inputSchema</code> for every tool. It leaves out <code translate="no" class="notranslate">title</code>, <code translate="no" class="notranslate">annotations</code>, and <code translate="no" class="notranslate">outputSchema</code>, which some clients also send, so every number here is a lower bound.</li>
+    <li>Credentials were placeholders. <code translate="no" class="notranslate">tools/list</code> is answered without a real token by these servers; an API call is not needed to learn what the tools cost.</li>
+    <li>Some servers can hide tools behind configuration or a selected toolset. The number is the default tool list, which is what a session pays before anyone tunes it. Sentry notes that it can be narrowed.</li>
+    <li>Tokens are counted with <code translate="no" class="notranslate">gpt-tokenizer@3.0.1</code>, the same tokenizer as the <a href="../../">The Context Budget Index</a>. Other models tokenize differently, so read these as approximate and compare them with each other.</li>
+    <li>Servers that connect to a database before answering, expose nothing until configured, or require a product subcommand are in the list above, not silently absent.</li>
+  </ul>
+
+  <h2>What to do about it</h2>
+  <p class="note">The cheapest MCP server is the one that is not connected. The second cheapest is one that exposes the tools a session needs and no more: disable toolsets you do not use, and prefer a server that can return its tool list on demand rather than one that sends all 73 at startup.</p>
+  <pre translate="no" class="notranslate">npx ctxcap --compare     # your AGENTS.md, against the Context Budget Index
+npx ctxcap init --agents mcp   # four tools, about 500 tokens</pre>
+  <p class="small">Data for this month: <a href="https://github.com/Naeha-S/ctxcap/blob/main/mcp-index/2026-11.json">2026-11.json</a>. <a href="https://github.com/Naeha-S/ctxcap/blob/main/mcp-index/README.md">Method and how to rebuild it.</a> Found a server that should be here? <a href="https://github.com/Naeha-S/ctxcap/issues">Open an issue.</a></p>
+</main>
+</body>
+</html>

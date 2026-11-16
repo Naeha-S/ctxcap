@@ -1,13 +1,14 @@
 {
   "name": "ctxcap",
-  "version": "1.5.1",
-  "description": "Offline token-budget linter for agent context files — measures CLAUDE.md/AGENTS.md, finds dead references, returns a ranked plan.",
+  "version": "1.6.0",
+  "description": "Offline token-budget linter for agent context files \u2014 measures CLAUDE.md/AGENTS.md, finds dead references, returns a ranked plan.",
   "type": "module",
   "bin": {
     "ctxcap": "src/index.js",
     "ctxcap-mcp": "mcp/server.js"
   },
   "files": [
+    "data",
     "src",
     "mcp",
     "schema",
@@ -27,7 +28,12 @@
     "test": "node test/run.mjs",
     "mcp": "node mcp/server.js",
     "leaderboard": "node scripts/leaderboard.mjs",
-    "leaderboard:page": "node scripts/leaderboard-page.mjs"
+    "leaderboard:page": "node scripts/leaderboard-page.mjs",
+    "index:data": "node scripts/index-data.mjs",
+    "mcp:index": "node scripts/mcp-index.mjs",
+    "mcp:page": "node scripts/mcp-index-page.mjs",
+    "receipts": "node scripts/receipts.mjs",
+    "receipts:page": "node scripts/receipts-page.mjs"
   },
   "dependencies": {
     "fast-glob": "3.3.2",

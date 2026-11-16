@@ -19,7 +19,7 @@ every PR that touches a context file fails — including a PR that only adds the
 workflow:
 
 ```
-$ npx ctxcap@1.5.1 --baseline <merge-base> --fail-on increase
+$ npx ctxcap@1.6.0 --baseline <merge-base> --fail-on increase
 TOKENS  DELTA  FILE
 723     +723   AGENTS.md          # not growth: there was nothing to compare against
 9       +9     CLAUDE.md

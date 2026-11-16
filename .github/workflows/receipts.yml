@@ -1,0 +1,58 @@
+name: receipts
+# Once a month: scan the newest Context Budget Index for dead references and
+# commit the data. A new finding is committed as unreviewed; it is called a
+# defect only after receipts/reviews.json records a reading.
+on:
+  schedule:
+    - cron: '0 8 16 * *' # 08:00 UTC on the 16th
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: receipts
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+
+      - name: Scan
+        run: |
+          month=$(date -u +%Y-%m)
+          if [ -e "receipts/$month.json" ]; then
+            echo "::notice::$month is already published. A month is scanned once and kept as it was scanned."
+            exit 0
+          fi
+          node scripts/receipts.mjs
+          node -e '
+            const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            if (data.totals.unreviewed > 0) {
+              console.log(`::notice::${data.totals.unreviewed} findings await a review in receipts/reviews.json`);
+            }
+            if (data.checked < 20) {
+              console.error(`::error::only ${data.checked} repositories were scanned`);
+              process.exit(1);
+            }
+          ' "receipts/$month.json"
+
+      - name: Build the pages
+        run: npm run leaderboard:page
+
+      - name: Test
+        run: npm test
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add receipts docs
+          git diff --staged --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "receipts: $(date -u +%Y-%m)"
+          git push
+          gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" --jq '"Pages build: " + .status' || true

@@ -18,8 +18,10 @@ repository search.
    when it differs from `package.json`.
 6. `README.md` — update pinned npm, MCP, and GitHub Action examples.
 7. Release examples — update pinned `Naeha-S/ctxcap@vX.Y.Z`; keep `@v1` only
-   as the moving major alias. The repository's own workflow runs the action
-   from the checkout (`uses: ./`) and needs no change.
+   as the moving major alias. This includes the paste-in block in
+   `examples/boilerplate/AGENTS.md`, which a test checks against
+   `package.json`. The repository's own workflow runs the action from the
+   checkout (`uses: ./`) and needs no change.
 8. The repository's own wiring — run `node src/index.js init --yes` so the
    pins in `.claude/`, `.cursor/`, `AGENTS.md`, and
    `.github/copilot-instructions.md` move to the new version, then
