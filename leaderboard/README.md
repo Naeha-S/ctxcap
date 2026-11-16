@@ -31,6 +31,19 @@ repositories. Every response is cached under `.ctxcap/cache/`, so a second run
 makes no network calls and writes the same bytes. Delta is measured against
 the previous month's `.json` file in this directory.
 
+## The page
+
+`docs/index.html` is the public page, served by GitHub Pages at
+<https://naeha-s.github.io/ctxcap/>. It is built from the newest `.json` file
+here, with no network access:
+
+```bash
+npm run leaderboard:page
+```
+
+Run it after the crawler and commit both. A test fails when the page and the
+data disagree.
+
 ## How files are counted
 
 - Depth 1 counts only files at the repository root. Nested files, files these
