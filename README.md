@@ -115,28 +115,28 @@ itself makes no network calls.
 
 | Written to | Command | Runs |
 | --- | --- | --- |
-| `.claude/settings.json` | `npx -y ctxcap@1.5.0 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
-| `.claude/settings.json` | `npx -y ctxcap@1.5.0 hook stop` | Each time Claude Code finishes responding |
-| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.5.0 --json` | When the agent follows the skill |
-| | `npx ctxcap@1.5.0 --stale --json` | |
-| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
-| | `npx ctxcap@1.5.0 --plan --budget <n> --apply` | |
-| | `npx ctxcap@1.5.0 --verify <planId>` | |
-| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.5.0 --json` | When Cursor follows the rule |
-| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
-| | `npx ctxcap@1.5.0 --verify <planId>` | |
-| `AGENTS.md` | `npx ctxcap@1.5.0 --json` | When the agent follows the instruction |
-| `.github/copilot-instructions.md` | `npx ctxcap@1.5.0 --json` | When Copilot follows the instruction |
-| | `npx ctxcap@1.5.0 --plan --budget <n>` | |
+| `.claude/settings.json` | `npx -y ctxcap@1.5.1 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
+| `.claude/settings.json` | `npx -y ctxcap@1.5.1 hook stop` | Each time Claude Code finishes responding |
+| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.5.1 --json` | When the agent follows the skill |
+| | `npx ctxcap@1.5.1 --stale --json` | |
+| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
+| | `npx ctxcap@1.5.1 --plan --budget <n> --apply` | |
+| | `npx ctxcap@1.5.1 --verify <planId>` | |
+| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.5.1 --json` | When Cursor follows the rule |
+| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
+| | `npx ctxcap@1.5.1 --verify <planId>` | |
+| `AGENTS.md` | `npx ctxcap@1.5.1 --json` | When the agent follows the instruction |
+| `.github/copilot-instructions.md` | `npx ctxcap@1.5.1 --json` | When Copilot follows the instruction |
+| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
 | `.github/workflows/ctxcap.yml` | `actions/checkout@v4` | On every pull request |
-| | `Naeha-S/ctxcap@v1.5.0` | |
-| `.mcp.json`, `.cursor/mcp.json` | `npx -y -p ctxcap@1.5.0 ctxcap-mcp` | When the client starts, with `--agents mcp` only |
+| | `Naeha-S/ctxcap@v1.5.1` | |
+| `.mcp.json`, `.cursor/mcp.json` | `npx -y -p ctxcap@1.5.1 ctxcap-mcp` | When the client starts, with `--agents mcp` only |
 
 What they write: the post-edit hook touches `.ctxcap/post-edit.stamp` and, if
 `.ctxcap/badge.json` exists, rewrites it. `--plan` saves the plan under
 `.ctxcap/plans/`. Only `--plan --budget <n> --apply` edits a context file, and
 only an agent or a person runs it; no hook and no workflow does. With
-`--no-pin` the same commands are written without `@1.5.0`, and the action as
+`--no-pin` the same commands are written without `@1.5.1`, and the action as
 `Naeha-S/ctxcap@v1`.
 
 | Flag | Effect |
@@ -146,7 +146,7 @@ only an agent or a person runs it; no hook and no workflow does. With
 | `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge,mcp` (default: all but `mcp`) |
 | `--remove` | Undo what `init` wrote, for every agent unless `--agents` is given |
 | `--force` | Overwrite a file or entry at a `ctxcap` path that `init` did not write |
-| `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.0` |
+| `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.1` |
 
 Commands are pinned to the version that wrote them, so a release cannot
 change what your agents run until you choose to upgrade. To upgrade, run
@@ -205,7 +205,7 @@ npx ctxcap doctor
 ```text
 claude   partially wired: missing .claude/skills/ctxcap/SKILL.md
 cursor   not wired
-codex    stale pin: AGENTS.md has 1.4.0, current is 1.5.0
+codex    stale pin: AGENTS.md has 1.5.0, current is 1.5.1
 copilot  wired
 ci       wired: by .github/workflows/lint.yml, not written by ctxcap init
 badge    wired
@@ -261,7 +261,7 @@ jobs:
         with: { fail-on: increase }
 ```
 
-Pin `Naeha-S/ctxcap@v1.5.0` if you want reproducible runs. A complete workflow
+Pin `Naeha-S/ctxcap@v1.5.1` if you want reproducible runs. A complete workflow
 is in [`examples/pull-request.yml`](examples/pull-request.yml).
 
 The action posts one comment on the pull request and updates it in place:
@@ -395,7 +395,7 @@ tell whether what remains still means the same thing, or whether an unmarked
 instruction was important. Review the diff before you commit it.
 
 The plan JSON includes `verifyCommand`, the exact pinned command that checks
-that plan, for example `npx ctxcap@1.5.0 --verify 6b8e55`. It is also printed
+that plan, for example `npx ctxcap@1.5.1 --verify 6b8e55`. It is also printed
 on its own line on stderr. While no agent in the repository is wired, the plan
 carries an `initHint` that points at `ctxcap init`.
 

@@ -1,6 +1,6 @@
 {
   "name": "ctxcap-mcp",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Offline MCP server for measuring, finding, and safely reducing bloated or stale AI coding-agent context files",
   "mcpName": "io.github.Naeha-S/ctxcap",
   "type": "module",
@@ -24,7 +24,7 @@
     "prompt-engineering"
   ],
   "dependencies": {
-    "ctxcap": "^1.5.0"
+    "ctxcap": "^1.5.1"
   },
   "repository": {
     "type": "git",
