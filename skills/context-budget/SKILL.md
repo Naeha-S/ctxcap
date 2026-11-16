@@ -18,7 +18,8 @@ npx -y ctxcap --json
 
 Report `total` and each entry in `files` (`path`, `tokens`, `delta`). `delta`
 is the change against `ctxcap-baseline.json`; without a baseline it is the
-whole size.
+whole size. Add `--compare` to place the largest file at a percentile in the
+Context Budget Index, which is a more useful sentence than a raw count.
 
 ## Find stale references
 

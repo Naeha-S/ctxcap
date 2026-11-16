@@ -1,0 +1,113 @@
+name: mcp-index
+# Once a month: measure the tool definitions of the pinned MCP servers, rebuild
+# the pages, and commit the new month. A month already in mcp-index/ is not
+# measured again, so its page keeps meaning what it meant.
+on:
+  schedule:
+    - cron: '0 7 16 * *' # 07:00 UTC on the 16th
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run. Measure into a scratch directory. Nothing is committed.
+        type: boolean
+        default: false
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: mcp-index
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+
+      - name: Decide what to do
+        id: plan
+        run: |
+          month=$(date -u +%Y-%m)
+          if [ "$DRY_RUN" = true ]; then
+            mode=dry
+            out="$RUNNER_TEMP/mcp-index"
+          elif [ -e "mcp-index/$month.json" ]; then
+            mode=skip
+            out=mcp-index
+            echo "::notice::$month is already published. A month is measured once and kept as it was measured, so there is nothing to do."
+          else
+            mode=publish
+            out=mcp-index
+          fi
+          { echo "month=$month"; echo "mode=$mode"; echo "out=$out"; } >> "$GITHUB_OUTPUT"
+
+      - name: Measure
+        if: steps.plan.outputs.mode != 'skip'
+        env:
+          MONTH: ${{ steps.plan.outputs.month }}
+          OUT: ${{ steps.plan.outputs.out }}
+        run: |
+          node scripts/mcp-index.mjs --month "$MONTH" --out "$OUT" --date "$(date -u +%Y-%m-%d)"
+          node -e '
+            const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            if (data.rows.length < 10) {
+              console.error(`::error::only ${data.rows.length} servers measured`);
+              process.exit(1);
+            }
+            if (!data.rows.some((row) => row.name === "ctxcap")) {
+              console.error("::error::the ctxcap server itself was not measured");
+              process.exit(1);
+            }
+          ' "$OUT/$MONTH.json"
+          cat "$OUT/$MONTH.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the pages
+        if: steps.plan.outputs.mode == 'publish'
+        run: npm run leaderboard:page
+
+      - name: Test
+        if: steps.plan.outputs.mode == 'publish'
+        run: npm test
+
+      - name: Commit and push
+        if: steps.plan.outputs.mode == 'publish'
+        env:
+          MONTH: ${{ steps.plan.outputs.month }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mcp-index docs
+          git commit -m "mcp-index: $MONTH"
+          git push
+
+      - name: Dry run, build pages and show the table
+        if: steps.plan.outputs.mode == 'dry'
+        env:
+          OUT: ${{ steps.plan.outputs.out }}
+          MONTH: ${{ steps.plan.outputs.month }}
+        run: |
+          node --input-type=module -e '
+            import { site } from "./scripts/mcp-index-page.mjs";
+            const files = await site(process.argv[1]);
+            for (const [file, content] of Object.entries(files)) {
+              const { mkdir, writeFile } = await import("node:fs/promises");
+              const path = await import("node:path");
+              const target = path.join(process.argv[2], file);
+              await mkdir(path.dirname(target), { recursive: true });
+              await writeFile(target, content);
+              console.log(`built ${target}`);
+            }
+          ' "$OUT" "$RUNNER_TEMP/docs"
+          git push --dry-run origin "HEAD:$GITHUB_REF_NAME"
+
+      - name: Ask GitHub Pages to build
+        if: steps.plan.outputs.mode != 'skip'
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" --jq '"Pages build: " + .status' || {
+            echo "::error::GitHub Pages was not asked to rebuild. Anything already committed is safe; the next push to main publishes it."
+            exit 1
+          }

@@ -1,0 +1,31 @@
+{
+  "note": "Every finding the scanner publishes is read here before it is published. status is defect or not-a-defect; reason is the reading; replace is the exact text change a pull request would make, if there is one. A finding with no entry here is listed as unreviewed and is not called a defect.",
+  "twbs/bootstrap#CLAUDE.md": {
+    "status": "defect",
+    "reason": "The sentence asserts that a CLAUDE.md points at this file. There is no CLAUDE.md at the root, and the repository has not had one since the file was renamed to AGENTS.md. The claim is false, and an agent may go looking for it.",
+    "replace": {
+      "from": "Tool-agnostic; `CLAUDE.md` points here.",
+      "to": "Tool-agnostic."
+    }
+  },
+  "avelino/awesome-go#.github/scripts/check-quality.js": {
+    "status": "defect",
+    "reason": "The reference is to a file that does not exist. The repository has a directory at that path instead: .github/scripts/check-quality/ holds a Go program, and the PR quality workflow runs it. The file was replaced by a directory; the sentence was not updated.",
+    "replace": {
+      "from": "`.github/scripts/check-quality.js`",
+      "to": "`.github/scripts/check-quality/`"
+    }
+  },
+  "morluto/rea#turbo.jsonc": {
+    "status": "not-a-defect",
+    "reason": "The line offers a choice: put the setting in turbo.json or turbo.jsonc. turbo.json exists, so the instruction resolves. A reference that is one of two alternatives is not dead because the other alternative is the one in use."
+  },
+  "Significant-Gravitas/AutoGPT#usePageName.ts": {
+    "status": "not-a-defect",
+    "reason": "This is the scaffolding template for a new feature, not a reference to a file that should be in the repository. 'Add `usePageName.ts` hook for logic' tells a generator what to create."
+  },
+  "Significant-Gravitas/AutoGPT#useComponentName.ts": {
+    "status": "not-a-defect",
+    "reason": "This is a naming pattern: ComponentName/ComponentName.tsx and useComponentName.ts show the shape of a component and its hook. The repeated placeholder is the tell."
+  }
+}

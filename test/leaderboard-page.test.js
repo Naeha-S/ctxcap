@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { monthsIn, page, site, SITE } from '../scripts/leaderboard-page.mjs';
 import { committed } from './helpers.js';
 
@@ -23,7 +23,14 @@ test('leaderboard page: the committed site is what the data builds, one permanen
   const months = (await monthsIn('leaderboard')).map((data) => data.month);
   const newest = months.at(-1);
   assert.ok(months.includes('2026-11'));
-  assert.deepEqual(Object.keys(files).sort(), ['.nojekyll', 'index.html', ...months.map((month) => `${month}/index.html`)].sort());
+  const mcpMonths = (await readdir('mcp-index')).filter((name) => /^\d{4}-\d{2}\.json$/.test(name)).map((name) => name.slice(0, 7));
+  const receiptMonths = (await readdir('receipts')).filter((name) => /^\d{4}-\d{2}\.json$/.test(name)).map((name) => name.slice(0, 7));
+  assert.deepEqual(
+    Object.keys(files).sort(),
+    ['.nojekyll', 'index.html', ...months.map((month) => `${month}/index.html`),
+      'mcp/index.html', ...mcpMonths.map((month) => `mcp/${month}/index.html`),
+      'receipts/index.html', ...receiptMonths.map((month) => `receipts/${month}/index.html`)].sort()
+  );
   for (const [file, content] of Object.entries(files)) {
     assert.equal(await committed(`docs/${file}`), content, `${file}: run \`npm run leaderboard:page\` and commit docs/`);
   }
@@ -41,7 +48,9 @@ test('leaderboard page: the committed site is what the data builds, one permanen
 
 test('leaderboard page: one table whose counts add up, a sample with its hit rate, nothing loaded from elsewhere', () => {
   const html = page(data(FIRST), { root: true });
-  assert.match(html, /<title>What the most-starred repositories spend on agent instructions, January 2027<\/title>/);
+  assert.match(html, /<title>The Context Budget Index: what the most-starred repositories spend on agent instructions, January 2027<\/title>/);
+  assert.ok(html.includes('<h1>The Context Budget Index</h1>'));
+  assert.ok(html.includes('<meta property="og:site_name" content="The Context Budget Index">'));
   assert.ok(html.includes('<b>3 of 10</b>'));
   assert.ok(html.includes('<b>30%</b>'));
   assert.ok(html.includes('This is a sample, not a ranking of GitHub'));
@@ -62,8 +71,17 @@ test('leaderboard page: one table whose counts add up, a sample with its hit rat
   assert.ok(html.includes('<td class="tokens"><span class="n">6,000</span><span class="bar" style="width:100.0%"></span></td>'));
   assert.doesNotMatch(html, /<t[dh][^>]*><\/t[dh]>/);
 
-  // Self-contained: no scripts, images, stylesheets, or fonts from another host.
-  assert.doesNotMatch(html, /<script|<img|rel="stylesheet"|@import|url\(/);
+  // Self-contained: one inline script for the percentile form, and nothing
+  // loaded from another host.
+  assert.equal(html.match(/<script/g).length, 1);
+  assert.doesNotMatch(html, /<script[^>]+src=|<img|rel="stylesheet"|@import|url\(/);
+  // The live form holds this month's values and the same at-or-below rule.
+  assert.ok(html.includes('const values = [6000,900,300,90];'));
+  assert.ok(html.includes('value <= tokens'));
+  assert.ok(html.includes('id="percentile-form"'));
+  assert.ok(html.includes('<noscript>'));
+  assert.ok(html.includes('the MCP Context Cost Index'));
+  assert.ok(html.includes('stale-reference receipts'));
   // A first month has no change column.
   assert.ok(!html.includes('>Change<'));
   assert.ok(html.includes('This is the first month'));

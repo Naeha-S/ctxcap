@@ -54,6 +54,7 @@ Run it in the repository you want to inspect. Nothing is installed or written:
 npx ctxcap              # token table
 npx ctxcap --json       # the same as JSON
 npx ctxcap --stale      # add dead paths and scripts
+npx ctxcap --compare    # this file's percentile in the Context Budget Index
 ```
 
 To track growth, commit a baseline. Later runs report the delta against it:
@@ -115,28 +116,28 @@ itself makes no network calls.
 
 | Written to | Command | Runs |
 | --- | --- | --- |
-| `.claude/settings.json` | `npx -y ctxcap@1.5.1 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
-| `.claude/settings.json` | `npx -y ctxcap@1.5.1 hook stop` | Each time Claude Code finishes responding |
-| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.5.1 --json` | When the agent follows the skill |
-| | `npx ctxcap@1.5.1 --stale --json` | |
-| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
-| | `npx ctxcap@1.5.1 --plan --budget <n> --apply` | |
-| | `npx ctxcap@1.5.1 --verify <planId>` | |
-| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.5.1 --json` | When Cursor follows the rule |
-| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
-| | `npx ctxcap@1.5.1 --verify <planId>` | |
-| `AGENTS.md` | `npx ctxcap@1.5.1 --json` | When the agent follows the instruction |
-| `.github/copilot-instructions.md` | `npx ctxcap@1.5.1 --json` | When Copilot follows the instruction |
-| | `npx ctxcap@1.5.1 --plan --budget <n>` | |
+| `.claude/settings.json` | `npx -y ctxcap@1.6.0 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
+| `.claude/settings.json` | `npx -y ctxcap@1.6.0 hook stop` | Each time Claude Code finishes responding |
+| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.6.0 --json` | When the agent follows the skill |
+| | `npx ctxcap@1.6.0 --stale --json` | |
+| | `npx ctxcap@1.6.0 --plan --budget <n>` | |
+| | `npx ctxcap@1.6.0 --plan --budget <n> --apply` | |
+| | `npx ctxcap@1.6.0 --verify <planId>` | |
+| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.6.0 --json` | When Cursor follows the rule |
+| | `npx ctxcap@1.6.0 --plan --budget <n>` | |
+| | `npx ctxcap@1.6.0 --verify <planId>` | |
+| `AGENTS.md` | `npx ctxcap@1.6.0 --json` | When the agent follows the instruction |
+| `.github/copilot-instructions.md` | `npx ctxcap@1.6.0 --json` | When Copilot follows the instruction |
+| | `npx ctxcap@1.6.0 --plan --budget <n>` | |
 | `.github/workflows/ctxcap.yml` | `actions/checkout@v4` | On every pull request |
-| | `Naeha-S/ctxcap@v1.5.1` | |
-| `.mcp.json`, `.cursor/mcp.json` | `npx -y -p ctxcap@1.5.1 ctxcap-mcp` | When the client starts, with `--agents mcp` only |
+| | `Naeha-S/ctxcap@v1.6.0` | |
+| `.mcp.json`, `.cursor/mcp.json` | `npx -y -p ctxcap@1.6.0 ctxcap-mcp` | When the client starts, with `--agents mcp` only |
 
 What they write: the post-edit hook touches `.ctxcap/post-edit.stamp` and, if
 `.ctxcap/badge.json` exists, rewrites it. `--plan` saves the plan under
 `.ctxcap/plans/`. Only `--plan --budget <n> --apply` edits a context file, and
 only an agent or a person runs it; no hook and no workflow does. With
-`--no-pin` the same commands are written without `@1.5.1`, and the action as
+`--no-pin` the same commands are written without `@1.6.0`, and the action as
 `Naeha-S/ctxcap@v1`.
 
 | Flag | Effect |
@@ -146,7 +147,7 @@ only an agent or a person runs it; no hook and no workflow does. With
 | `--agents <list>` | Comma-separated subset of `claude,cursor,codex,copilot,ci,badge,mcp` (default: all but `mcp`) |
 | `--remove` | Undo what `init` wrote, for every agent unless `--agents` is given |
 | `--force` | Overwrite a file or entry at a `ctxcap` path that `init` did not write |
-| `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.5.1` |
+| `--no-pin` | Write `npx ctxcap` instead of `npx ctxcap@1.6.0` |
 
 Commands are pinned to the version that wrote them, so a release cannot
 change what your agents run until you choose to upgrade. To upgrade, run
@@ -205,7 +206,7 @@ npx ctxcap doctor
 ```text
 claude   partially wired: missing .claude/skills/ctxcap/SKILL.md
 cursor   not wired
-codex    stale pin: AGENTS.md has 1.5.0, current is 1.5.1
+codex    stale pin: AGENTS.md has 1.5.0, current is 1.6.0
 copilot  wired
 ci       wired: by .github/workflows/lint.yml, not written by ctxcap init
 badge    wired
@@ -261,7 +262,7 @@ jobs:
         with: { fail-on: increase }
 ```
 
-Pin `Naeha-S/ctxcap@v1.5.1` if you want reproducible runs. A complete workflow
+Pin `Naeha-S/ctxcap@v1.6.0` if you want reproducible runs. A complete workflow
 is in [`examples/pull-request.yml`](examples/pull-request.yml).
 
 The action posts one comment on the pull request and updates it in place:
@@ -357,7 +358,40 @@ deletes stale lines for you.
 A clean result means no reference of those shapes failed to resolve. It does
 not mean the file is up to date.
 
-## What real repositories spend
+## The Context Budget Index
+
+A named, monthly index of what the most-starred repositories on GitHub spend on
+agent instructions. The most-starred 25 repositories that have an `AGENTS.md`
+or `CLAUDE.md` at the root are counted; in November 2026, 25 of the top 56 had
+one. Every month has a permanent page, and the data is a JSON file in
+[`leaderboard/`](leaderboard/).
+
+The point of a percentile is that it travels. `ctxcap` ships the distribution,
+so one command places the file you are looking at:
+
+```bash
+npx ctxcap --compare
+```
+
+```text
+AGENTS.md: 4,100 tokens — larger than 27 of 30 context files in The Context Budget Index (2026-11), 90th percentile.
+```
+
+The same lookup is a form on the [index page](https://naeha-s.github.io/ctxcap/):
+type a token count and it returns the percentile without sending anything
+anywhere. `--json` adds a `comparison` object with the month, rank, and sample
+size. The count is compared against the largest context file in the run,
+because the index ranks files, not totals.
+
+The index does not say a large file is a bad file. Six thousand tokens of rules
+an agent needs are well spent. It says what the file costs, and how it compares.
+
+The month's [analysis](leaderboard/2026-11-analysis.md) asks the question the
+table invites — whether size falls as stars rise. It does not fall: the
+correlation is weakly positive and not distinguishable from zero, and the
+document says so rather than repeating the guess.
+
+### The most-starred repositories compared
 
 Measured with `ctxcap --stale` on 16 November 2026, from each default branch:
 
@@ -384,6 +418,79 @@ out of it, all now covered by the rules above: bare extensions (`.py`, `.tsx`)
 reported as missing files, a path their `.gitignore` covers, a path introduced
 with `e.g.`, and a path listed under `forbidden`. `affaan-m/ECC` went from 12
 findings to 0 and `ultraworkers/claw-code` from 2 to 0.
+
+## The MCP Context Cost Index
+
+An MCP server's tool definitions are sent to the model at the start of every
+session, before the first question. Almost nobody knows what they cost. The
+[index](https://naeha-s.github.io/ctxcap/mcp/) measures the pinned versions of
+16 popular servers over stdio, with `tools/list`, and ranks them.
+
+| Server | Tools | Tokens |
+| --- | ---: | ---: |
+| Sentry | 73 | 46,512 |
+| Firecrawl | 32 | 17,764 |
+| Notion | 24 | 17,163 |
+| Chrome DevTools | 33 | 6,753 |
+| Playwright | 25 | 3,936 |
+| GitHub | 26 | 3,548 |
+| `ctxcap`'s own server | 4 | 507 |
+
+The largest sends 92 times the definitions of `ctxcap`'s own four-tool server,
+which does the measure, plan, and verify steps the skill gives Claude Code. The count covers
+`name`, `description`, and `inputSchema`, which is a lower bound: `title`,
+`annotations`, and `outputSchema` are left out because not every client sends
+them. Servers that hide their tools until configured are listed as not
+measured, with the reason, rather than dropped. Data and method:
+[`mcp-index/`](mcp-index/).
+
+## Stale-reference receipts
+
+The stale pass finds factual defects: a path in a context file that does not
+exist. Once a month, every repository in the index is checked this way, and
+every finding is read by a person before it is called a defect.
+
+| Month | Repositories | Found | Confirmed | Excluded after reading |
+| --- | ---: | ---: | ---: | ---: |
+| 2026-11 | 25 | 5 | 2 | 3 |
+
+- `twbs/bootstrap` `AGENTS.md:3` says "Tool-agnostic; `CLAUDE.md` points here."
+  There is no `CLAUDE.md`.
+- `avelino/awesome-go` `AGENTS.md:38` says the workflow runs
+  `.github/scripts/check-quality.js`. That path is a directory holding a Go
+  program.
+
+Both are one-line fixes, with a patch and a pull request body under
+[`receipts/prs/`](receipts/prs/). The three excluded findings are published
+too: two scaffolding templates in `AutoGPT` and one "turbo.json or
+turbo.jsonc" alternative. Hiding the false positives would make the true ones
+worth less. [The receipts](https://naeha-s.github.io/ctxcap/receipts/) are also
+a [time-boxed audit series](.github/ISSUE_TEMPLATE/audit.yml).
+
+## Roast it
+
+```bash
+npx ctxcap roast
+```
+
+```text
+6,249 tokens. This is a short story, not an instruction file.
+```
+
+One line, deterministic, no model and no network: the same repository gets the
+same sentence on every machine. It roasts the largest context file, and if
+`--stale` finds dead references that outranks size. `--json` returns
+`{tokens, file, roast}`. Exit code is always 0.
+
+## Start from a template
+
+[`examples/boilerplate/`](examples/boilerplate/) is a repository with a context
+budget from its first commit: an `AGENTS.md`, a 2,000-token `.ctxcap.json`, and
+a pull request workflow. Copy it, or run `npx ctxcap init --yes`, which writes
+the wiring for the agents the repository uses and prints the diff first. The
+template README also has the one line to paste into a scaffold or starter kit,
+for maintainers who want the measurement in every repository generated from
+it.
 
 ## Trim to a budget
 
@@ -422,7 +529,7 @@ tell whether what remains still means the same thing, or whether an unmarked
 instruction was important. Review the diff before you commit it.
 
 The plan JSON includes `verifyCommand`, the exact pinned command that checks
-that plan, for example `npx ctxcap@1.5.1 --verify 6b8e55`. It is also printed
+that plan, for example `npx ctxcap@1.6.0 --verify 6b8e55`. It is also printed
 on its own line on stderr. While no agent in the repository is wired, the plan
 carries an `initHint` that points at `ctxcap init`.
 
@@ -513,12 +620,14 @@ so one line is enough:
 | `ctxcap init --remove` | Undo that |
 | `ctxcap doctor` | Report whether the wiring is complete and current |
 | `ctxcap hook post-edit\|stop` | What the Claude Code hooks run. Not meant to be run by hand |
+| `ctxcap roast` | One deterministic line about the file. `--json`, `--stale` |
 
 | Flag | Effect |
 | --- | --- |
 | `--json` | Machine-readable JSON report on stdout |
 | `--sarif` | SARIF 2.1.0 on stdout |
 | `--suggest` | Include compression suggestions |
+| `--compare` | Add this file's percentile in the Context Budget Index |
 | `--stale` | Find dead paths, commands, and references |
 | `--stale-glob` | Include globs that match no files |
 | `--stale-fix` | Print a deletion diff; never writes files |

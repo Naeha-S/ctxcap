@@ -29,7 +29,7 @@ body:
     attributes:
       label: ctxcap version
       description: The output of `npx ctxcap --version`. For the MCP server, the `ctxcap-mcp` version as well.
-      placeholder: 1.5.1
+      placeholder: 1.6.0
     validations:
       required: true
   - type: input

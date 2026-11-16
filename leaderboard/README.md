@@ -1,8 +1,9 @@
-# What popular repositories spend on agent context files
+# The Context Budget Index
 
-One file per month. Each takes the most-starred GitHub repositories in star
-order, keeps the first N that have an `AGENTS.md` or `CLAUDE.md`, and counts
-what those files cost in tokens with [ctxcap](https://github.com/Naeha-S/ctxcap).
+The Context Budget Index. One file per month. Each takes the most-starred
+GitHub repositories in star order, keeps the first N that have an `AGENTS.md`
+or `CLAUDE.md`, and counts what those files cost in tokens with
+[ctxcap](https://github.com/Naeha-S/ctxcap).
 
 Each month is a `<yyyy-mm>.md` table and the `.json` it was written from, both
 in this directory. The first is [2026-11](2026-11.md).
@@ -34,23 +35,42 @@ the previous month's `.json` file in this directory.
 
 ## The page
 
-The public pages are served by GitHub Pages from `docs/`:
+The public pages are served by GitHub Pages from `docs/`. The index has a stable
+address, and every month has a permanent page:
 
 - <https://naeha-s.github.io/ctxcap/> always shows the newest month.
 - <https://naeha-s.github.io/ctxcap/2026-11/> is the permanent page for one
   month. Link to this form when citing a number; it stays after the next
   month is published.
 
-They are built from the `.json` files here, with no network access:
+They are built from the `.json` files here, with no network access. The page
+carries a percentile form, and the pages are still self-contained: one inline
+script, no other host, nothing fetched:
 
 ```bash
-npm run leaderboard:page
+npm run index:data        # data/context-index.json, shipped with the package
+npm run leaderboard:page  # docs/, including the MCP and receipts sections
 ```
 
+`data/context-index.json` is what `npx ctxcap --compare` reads. A test fails
+when it does not match the newest month, so it is rebuilt with the crawl and
+committed with it. The percentile rule is the share of measured files at or
+below the given count; the largest file is the 100th percentile, not the
+(n−1)/n one. The same rule is in the page's form and in `src/compare.js`.
+
+## The correlation
+
+`2026-11-analysis.md` asks whether size falls as stars rise. It does not: the
+repository-level Spearman correlation is 0.269, the permutation p-value is
+0.194, and the bootstrap interval crosses zero. Run `node scripts/analyze.mjs`
+to reproduce it from the committed JSON. A test keeps the document's numbers
+honest.
+
 Run it after the crawler and commit `docs/` with the data. A test fails when
-the pages and the data disagree. The pages load nothing from another host and
-contain no scripts. `docs/og.png` is the image shown when a link is shared; it
-carries no month or numbers, so it does not need rebuilding.
+the pages and the data disagree. The pages load nothing from another host; the
+index page carries one inline script, for the percentile form, and the MCP and
+receipts pages carry none. `docs/og.png` is the image shown when a link is
+shared; it carries no month or numbers, so it does not need rebuilding.
 
 ## Every month
 

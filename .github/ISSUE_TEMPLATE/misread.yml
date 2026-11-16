@@ -57,7 +57,7 @@ body:
     attributes:
       label: ctxcap version
       description: The output of `npx ctxcap --version`.
-      placeholder: 1.5.1
+      placeholder: 1.6.0
     validations:
       required: true
   - type: dropdown

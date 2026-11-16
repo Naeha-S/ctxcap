@@ -29,6 +29,14 @@ const PROHIBITED = /\b(?:forbidden|banned|prohibited|disallowed|must\s+not\s+(?:
 // that broke. Whole-line, because the assertion can sit in front of any item.
 const ABSENT = /(?:^|[\s(])(?:no|none|without|lacks?|missing|has\s+no|there\s+is\s+no|nothing)\b/i;
 const SCAN_IGNORE = ['**/node_modules/**', '**/.git/**'];
+// `.d.ts` is the name of a kind of file, like `.py`, not a file called `d.ts`.
+// A declared type surface is not a path into this repository.
+const EXTENSION_KINDS = new Set(['d.ts', 'd.mts', 'd.cts']);
+// A line that introduces names rather than files: "- Files: `kebab-case.tsx`",
+// "the `agent.json` file name". These describe a shape, so absence is not a
+// finding.
+const NAMING_PREFIX = /^\s*(?:[-*+]|\d+[.)])?\s*files?\s*:/i;
+const NAMING_LINE = /\bfile\s+names?\b/i;
 
 function clean(value) {
   return value.replace(/[),.;:!?]+$/, '');
@@ -184,10 +192,16 @@ export async function findStale(files, root, config, { staleGlob = false } = {})
 
       for (const match of line.matchAll(BACKTICK)) {
         const value = clean(match[1].trim());
+        const prefix = line.slice(0, match.index);
         // `e.g. \`python-reviewer.md\`` names a shape, not a file that should exist.
-        if (EXAMPLE.test(line.slice(0, match.index))) continue;
+        if (EXAMPLE.test(prefix)) continue;
         if (PROHIBITED.test(line)) continue;
-        if (ABSENT.test(line.slice(0, match.index))) continue;
+        // A naming section, or "the `agent.json` file name": a shape, not a path.
+        if (NAMING_PREFIX.test(prefix) || NAMING_LINE.test(line)) continue;
+        // "there is no\n`requirements.txt`": the sentence can cross the line.
+        if (ABSENT.test(prefix) || (prefix.trim() === '' && ABSENT.test(lines[index - 1] ?? ''))) continue;
+        // `.d.ts` names a kind of file, like `.py`; it is not a file called `d.ts`.
+        if (!value.includes('/') && EXTENSION_KINDS.has(value.replace(/^\./, '').toLowerCase())) continue;
         const script = /^npm run\s+([^\s`]+)/.exec(value)?.[1];
         if (script) {
           const known = await scripts();

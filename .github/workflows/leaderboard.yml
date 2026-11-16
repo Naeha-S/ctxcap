@@ -71,6 +71,12 @@ jobs:
           ' "$OUT/$MONTH.json"
           cat "$OUT/$MONTH.md" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Update the percentile data
+        if: steps.plan.outputs.mode == 'publish'
+        env:
+          MONTH: ${{ steps.plan.outputs.month }}
+        run: node scripts/index-data.mjs --month "$MONTH"
+
       - name: Build the pages
         if: steps.plan.outputs.mode == 'publish'
         run: npm run leaderboard:page
@@ -88,7 +94,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add leaderboard docs
+          git add leaderboard data docs
           git commit -m "leaderboard: $MONTH"
           git push
 
