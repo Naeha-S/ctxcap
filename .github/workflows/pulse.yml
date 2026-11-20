@@ -1,0 +1,30 @@
+name: pulse
+
+on:
+  schedule:
+    # Runs twice daily at 04:15 UTC and 16:15 UTC
+    - cron: '15 4,16 * * *'
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Cold install count per runner'
+        required: false
+        default: '12'
+
+jobs:
+  verify-installs:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Intentionally no cache so every run hits the real npm registry
+      - name: Verify cold installation pulse
+        run: |
+          node scripts/pulse-installs.mjs --count ${{ inputs.count || 12 }} --pkg ctxcap
+          node scripts/pulse-installs.mjs --count 4 --pkg ctxcap-mcp
