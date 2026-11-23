@@ -1,9 +1,9 @@
 ---
-description: Measure agent context files with ctxcap before and after editing them
+description: Diagnose repository context costs and stale agent instructions
 alwaysApply: false
 globs: CLAUDE.md,AGENTS.md,**/CLAUDE.md,**/AGENTS.md
 ---
 
 <!-- ctxcap:managed -->
-Before and after you edit this file, run `npx ctxcap@1.6.0 --json` and report the token change.
+Before and after you edit this file, run `npx ctxcap@1.6.0 why`; fix stale references and review risky-content findings.
 If the total is over budget, run `npx ctxcap@1.6.0 --plan --budget <n>`, cut only the line ranges it lists, then run the `npx ctxcap@1.6.0 --verify <planId>` it names.

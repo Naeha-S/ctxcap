@@ -7,6 +7,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { loadConfig } from './config.js';
 import { collectFiles } from './glob.js';
+import { measureFiles } from './measure.js';
 import { VERSION } from './version.js';
 
 import { STAMP } from './wire.js';
@@ -87,13 +88,26 @@ async function stop(root, input) {
   return { systemMessage: `ctxcap: context files are at ${result.total} tokens, over ${budget}.${overBudget(result)}` };
 }
 
+/** Before compaction, name the largest known always/startup repo context file. */
+async function preCompact(root) {
+  const config = await loadConfig(root);
+  const largest = (await measureFiles(root, config))
+    .filter((file) => ['always', 'startup'].includes(file.loadClass))
+    .sort((a, b) => b.tokens - a.tokens || a.path.localeCompare(b.path))[0];
+  if (!largest) return null;
+  return {
+    systemMessage: `ctxcap: before compaction, the largest known always/startup repository context file is ${largest.path} (${largest.tokens.toLocaleString('en-US')} approximate tokens). Review whether task-specific guidance belongs in an on-demand skill. This is not the full session total; active skills and MCP tool schemas are not observable here.`
+  };
+}
+
 export async function hookCli(argv) {
   try {
     const root = path.resolve(process.env.CLAUDE_PROJECT_DIR || '.');
     let output;
     if (argv[0] === 'post-edit') output = await postEdit(root, await stdinJson());
     else if (argv[0] === 'stop') output = await stop(root, await stdinJson());
-    else throw new Error(`unknown hook "${argv[0] ?? ''}"; expected post-edit or stop`);
+    else if (argv[0] === 'pre-compact') output = await preCompact(root);
+    else throw new Error(`unknown hook "${argv[0] ?? ''}"; expected post-edit, stop, or pre-compact`);
     if (output) process.stdout.write(JSON.stringify(output) + '\n');
     return 0;
   } catch (error) {

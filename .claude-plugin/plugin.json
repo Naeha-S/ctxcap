@@ -1,6 +1,6 @@
 {
   "name": "ctxcap",
-  "description": "Measure what CLAUDE.md, AGENTS.md and prompt files cost in tokens, find references in them that no longer exist, and trim them to a budget. Offline, no API key.",
+  "description": "Diagnose repository context for coding agents: rank instruction and skill costs, find stale references, flag risky content, and name configured MCP servers.",
   "version": "1.6.0",
   "author": {
     "name": "Naeha S",

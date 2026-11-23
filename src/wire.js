@@ -83,8 +83,8 @@ const stateIgnore = () => [
 // What the agent matches a request against. The three quoted phrases are the
 // ways people actually say it; keep the whole line under 400 characters and
 // free of ": ", which would end a plain YAML scalar.
-export const SKILL_TRIGGERS = ['my CLAUDE.md is getting long', 'how many tokens does AGENTS.md cost', 'the agent stopped following a rule'];
-export const SKILL_DESCRIPTION = `Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed. Typical requests are ${SKILL_TRIGGERS.map((phrase) => `"${phrase}"`).join(', ')}.`;
+export const SKILL_TRIGGERS = ['what is eating my context window', 'why is my coding agent following stale instructions', 'what MCP servers are configured'];
+export const SKILL_DESCRIPTION = `Diagnose repository context costs and stale references. Use when an agent seems to miss repo rules, a context file has grown, or you need to find a broken instruction. Typical requests are ${SKILL_TRIGGERS.map((phrase) => `"${phrase}"`).join(', ')}.`;
 
 // The three rules are the ones the README gives; a test keeps them identical.
 export const AGENT_RULES = `1. Splice by \`startLine\`/\`endLine\`. Never rewrite a file from scratch.
@@ -102,10 +102,11 @@ description: ${SKILL_DESCRIPTION}
 ${MANAGED_MD}
 # ctxcap
 
-Measure first. Trim only when the total is over budget.
+Diagnose first. \`why\` ranks repository context files and skills, names configured MCP servers, and reports stale references and risky content. It does not know which skills are active or measure live MCP tool schemas.
 
 \`\`\`bash
-${run} --json                        # tokens per context file
+${run} why                           # ranked diagnosis with a fix per finding
+${run} --json                        # token counts per configured context file
 ${run} --stale --json                # references that no longer resolve
 \`\`\`
 
@@ -134,6 +135,7 @@ function claude(context) {
       groups: ['claude'], path: '.claude/settings.json',
       events: {
         PostToolUse: { matcher: 'Edit|Write|MultiEdit', hooks: [command('post-edit')] },
+        PreCompact: { hooks: [command('pre-compact')] },
         Stop: { hooks: [command('stop')] }
       }
     }),
@@ -153,13 +155,13 @@ export const CURSOR_GLOBS = 'CLAUDE.md,AGENTS.md,**/CLAUDE.md,**/AGENTS.md';
 function cursorRule(context) {
   const run = npx(context);
   return `---
-description: Measure agent context files with ctxcap before and after editing them
+description: Diagnose repository context costs and stale agent instructions
 alwaysApply: false
 globs: ${CURSOR_GLOBS}
 ---
 
 ${MANAGED_MD}
-Before and after you edit this file, run \`${run} --json\` and report the token change.
+Before and after you edit this file, run \`${run} why\`; fix stale references and review risky-content findings.
 If the total is over budget, run \`${run} --plan --budget <n>\`, cut only the line ranges it lists, then run the \`${run} --verify <planId>\` it names.
 `;
 }
@@ -185,15 +187,15 @@ function pointers(context) {
     {
       groups: ['codex'], path: 'AGENTS.md', kind: 'block', place: 'append',
       lines: [
-        `\`${run} --json\` counts the tokens in agent context files such as this one.`,
-        'Run it before and after you edit one, and report the change.'
+        `\`${run} why\` diagnoses repository context sources, skills, stale references, and risky content.`,
+        'Run it before and after you edit one; review the fix for each finding.'
       ]
     },
     {
       groups: ['copilot'], path: '.github/copilot-instructions.md', kind: 'block', place: 'append',
       lines: [
-        `\`${run} --json\` counts the tokens in agent context files: this file, AGENTS.md, CLAUDE.md, and .cursor/rules.`,
-        'Run it before and after you edit one, and report the change in the pull request.',
+        `\`${run} why\` diagnoses repository context files and skills, names configured MCP servers, and finds stale or risky content.`,
+        'Run it before and after context changes; fix stale references and review security findings.',
         `When the total is over budget, \`${run} --plan --budget <n>\` lists the line ranges to cut.`
       ]
     }

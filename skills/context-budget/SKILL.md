@@ -49,7 +49,7 @@ Only when the user asks to get under a token budget.
 5. Show the user the `git diff` and let them decide. Do not commit it for
    them.
 
-Plans are saved under `.ctxcap/plans/` and expire after 24 hours; a
+Saved plans are local temporary state and expire after 24 hours; a
 `PLAN_EXPIRED` error means you make a new plan. Do not run `--apply` in CI.
 
 ## Keep it from growing back

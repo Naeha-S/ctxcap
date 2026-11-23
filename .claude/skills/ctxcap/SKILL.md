@@ -1,15 +1,16 @@
 ---
 name: ctxcap
-description: Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed. Typical requests are "my CLAUDE.md is getting long", "how many tokens does AGENTS.md cost", "the agent stopped following a rule".
+description: Diagnose repository context costs and stale references. Use when an agent seems to miss repo rules, a context file has grown, or you need to find a broken instruction. Typical requests are "what is eating my context window", "why is my coding agent following stale instructions", "what MCP servers are configured".
 ---
 
 <!-- ctxcap:managed -->
 # ctxcap
 
-Measure first. Trim only when the total is over budget.
+Diagnose first. `why` ranks repository context files and skills, names configured MCP servers, and reports stale references and risky content. It does not know which skills are active or measure live MCP tool schemas.
 
 ```bash
-npx ctxcap@1.6.0 --json                        # tokens per context file
+npx ctxcap@1.6.0 why                           # ranked diagnosis with a fix per finding
+npx ctxcap@1.6.0 --json                        # token counts per configured context file
 npx ctxcap@1.6.0 --stale --json                # references that no longer resolve
 ```
 

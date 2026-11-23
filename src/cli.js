@@ -10,11 +10,12 @@ import { VERSION } from './version.js';
 import { findStale, staleDiff } from './stale.js';
 import { makePlan, savePlan, loadPlan, verifyPlan, staleBlock } from './plan.js';
 
-const HELP = `ctxcap — token budget linter for context files
+const HELP = `ctxcap — diagnose repository context for coding agents
 
 Usage: ctxcap [options]
        ctxcap init [--yes] [--print] [--agents <list>] [--remove] [--no-pin] [--force]
        ctxcap doctor [--json]
+       ctxcap why [--json] [--root <path>]
        ctxcap roast [--json] [--stale]
 
   --json              machine-readable report on stdout

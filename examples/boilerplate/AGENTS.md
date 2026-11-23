@@ -14,6 +14,6 @@
 - If a command fails twice, stop and report the output instead of guessing.
 
 <!-- ctxcap:begin -->
-`npx ctxcap@1.6.0 --json` counts the tokens in agent context files such as this one.
-Run it before and after you edit one, and report the change.
+`npx ctxcap@1.6.0 why` diagnoses repository context costs and stale instructions.
+Run it before and after context changes; fix broken references and review risky-content findings.
 <!-- ctxcap:end -->

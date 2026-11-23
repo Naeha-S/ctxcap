@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { makePlan, applyPlan, loadPlan, savePlan, verifyPlan } from '../src/plan.js';
@@ -217,6 +217,48 @@ async function inlineFixture(text) {
 }
 
 const FILLER = 'The deploy pipeline builds the image, runs the unit suite, and waits for the smoke checks before promoting. ';
+
+test('same-file duplicate removal verifies while retaining the canonical copy', async () => {
+  const paragraph = 'General guidance explains how the repository organizes modules and how contributors should keep all changes small and easy to review.';
+  const data = await inlineFixture(`# Notes\n\n${paragraph}\n\n${paragraph}\n`);
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  const duplicate = plan.plan.find((finding) => finding.action === 'deleteKeepingCanonical');
+  assert.ok(duplicate);
+
+  const result = await applyPlan(plan, data.root);
+  assert.deepEqual(result.missed, []);
+  const verified = await verifyPlan(plan, data.root);
+  assert.deepEqual(verified.applied, [duplicate.id]);
+  assert.deepEqual(verified.missed, []);
+  assert.equal((await readFile(path.join(data.root, 'AGENTS.md'), 'utf8')).split(paragraph).length - 1, 1);
+});
+
+test('class-budget feasibility reflects the simulated plan, not current totals', async () => {
+  const paragraph = 'General guidance explains how the repository organizes modules and how contributors should keep all changes small and easy to review.';
+  const data = await inlineFixture(`# Notes\n\n${paragraph}\n\n${paragraph}\n`);
+  data.files[0].loadClass = 'startup';
+  const classBudget = data.files[0].tokens - 1;
+  const plan = await makePlan({
+    ...data,
+    config: { ignore: [] },
+    budget: 10000,
+    budgetClasses: { startup: classBudget }
+  });
+
+  assert.ok(plan.plan.some((finding) => finding.action === 'deleteKeepingCanonical'));
+  assert.equal(plan.satisfiable, true);
+});
+
+test('apply preserves restrictive file permissions', { skip: process.platform === 'win32' }, async () => {
+  const data = await fixture();
+  const plan = await makePlan({ ...data, config: { ignore: [] }, budget: 1 });
+  const target = path.join(data.root, 'AGENTS.md');
+  await chmod(target, 0o600);
+
+  const result = await applyPlan(plan, data.root);
+  assert.ok(result.applied.length > 0);
+  assert.equal((await stat(target)).mode & 0o777, 0o600);
+});
 
 test('condense keeps a rule that sits mid-paragraph and verify accepts the result', async () => {
   const rule = 'Whatever happens, NEVER run the migration job against production without a snapshot.';

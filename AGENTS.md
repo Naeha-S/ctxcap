@@ -1,35 +1,20 @@
 # ctxcap
 
-Token budget linter for prompt and context files.
+Diagnose repository context for coding agents.
 
-## When to run
-Run before and after editing any of: CLAUDE.md, AGENTS.md,
-.github/copilot-instructions.md, prompts/**, .cursor/rules/**
+## Start here
+Run `npx ctxcap why` for ranked context/skill file sizes, named MCP servers, stale references, and high-confidence risky-content findings. Costs are approximate; this report does not know which on-demand skills or live MCP tools are active in a session.
 
-## How
-npx -y ctxcap --json
-
-Parse stdout. Fields: files[].tokens, files[].delta, files[].budget, over.
-
-## If over budget
-Run: npx -y ctxcap --json --suggest
-Compress the file with the largest delta first. Remove duplicated
-sections and stale instructions. Re-run until `over` is false.
-
-## Exit codes
-0 clean, 1 breach, 2 error. Always pass --json; never rely on text output.
-
-## MCP
-npx -y ctxcap-mcp
-Tools: measure_context, context_budget_plan, context_budget_verify, trim_to_budget
+## Checks
+- Run `npx ctxcap --json` for machine-readable context-file counts.
+- Run `npx ctxcap --stale` for broken paths and commands.
+- Recognizable credentials are reported with values redacted. Remove and rotate exposed secrets.
+- Use `npx ctxcap --plan --budget <n>` only when you intend to trim; review edits before applying.
 
 ## Constraints
-No network. No telemetry. No API key. Counts are approximate —
-compare deltas, not absolute values.
-
-Keep the workflow reproducible and concise. Run the measurement before changing context files, inspect the JSON fields rather than guessing from formatted text, identify whether a file is always loaded, startup loaded, conditionally loaded, or manual, and preserve load-bearing rules. When a finding is available, apply only the stated line range, review the resulting diff, remeasure the file, and verify the saved plan.
+No runtime network calls or telemetry. No configured MCP server is launched by `ctxcap why`. Counts are approximate; compare deltas, not absolutes.
 
 <!-- ctxcap:begin -->
-`npx ctxcap@1.6.0 --json` counts the tokens in agent context files such as this one.
-Run it before and after you edit one, and report the change.
+`npx ctxcap@1.6.0 why` diagnoses repository context sources, skills, stale references, and risky content.
+Run it before and after you edit one; review the fix for each finding.
 <!-- ctxcap:end -->

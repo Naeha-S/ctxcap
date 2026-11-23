@@ -2,8 +2,8 @@
 #
 # Safe because:
 #  - action runs from github.action_path on the base branch, never executing untrusted PR scripts;
-#  - checks out PR head SHA with fetch-depth: 0 so merge-base can be resolved;
-#  - ctxcap only reads files in the checkout as regular data.
+#  - checks out the PR head SHA into `pr/`, not the workspace root, with history for merge-base;
+#  - ctxcap only reads files in that checkout as regular data.
 name: ctxcap
 on: pull_request_target
 jobs:
@@ -17,7 +17,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
           fetch-depth: 0
       - uses: Naeha-S/ctxcap@v1
         with:
+          path: pr
           fail-on: increase
