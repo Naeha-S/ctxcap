@@ -15,7 +15,7 @@ test('boilerplate: the action is the moving major, so the template does not go s
 
 test('boilerplate: the paste-in block is pinned to this release, and it fits the budget', async () => {
   const agents = await committed('examples/boilerplate/AGENTS.md');
-  assert.ok(agents.includes(`npx ctxcap@${pkg.version} --json`));
+  assert.ok(agents.includes(`npx ctxcap@${pkg.version} why`));
   assert.ok(agents.includes('<!-- ctxcap:begin -->') && agents.includes('<!-- ctxcap:end -->'));
 
   const report = cli('examples/boilerplate', '--json');
@@ -35,5 +35,5 @@ test('boilerplate: the README offers both paths, copy and init', async () => {
   const readme = await committed('examples/boilerplate/README.md');
   assert.ok(readme.includes('npx ctxcap init --yes'));
   assert.ok(readme.includes('npx ctxcap --update-baseline'));
-  assert.ok(readme.includes('npx -y ctxcap --stale --json'));
+  assert.ok(readme.includes('npx -y ctxcap why'));
 });

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { countTokens } from './tokenize.js';
 import { findStale, blockRange } from './stale.js';
@@ -193,6 +193,13 @@ function hashText(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
+function occurrenceCount(text, needle) {
+  if (!needle) return 0;
+  let count = 0;
+  for (let index = 0; (index = text.indexOf(needle, index)) !== -1; index += needle.length) count++;
+  return count;
+}
+
 export async function makePlan({ files, root, config, budget, budgetClasses = {}, maxFindings = 15, includeDiff = false, apply = false, strictPreserve = false, maxCondenseChars = 320, minTokens = 20 }) {
   if (!Number.isInteger(budget) || budget < 0) {
     const error = new Error('budget must be a non-negative integer');
@@ -301,7 +308,7 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
     .reduce((total, [, text]) => total + countTokens(text), 0);
   const classBudgetsSatisfied = Object.entries(budgetClasses).every(([loadClass, classBudget]) =>
     files.filter((file) => (file.loadClass ?? 'always') === loadClass)
-      .reduce((total, file) => total + file.tokens, 0) <= classBudget
+      .reduce((total, file) => total + countTokens(simulated.get(file.path)), 0) <= classBudget
   );
   const baselineTotal = files.reduce((total, file) => total + (file.baselineTokens ?? file.tokens), 0);
   const response = {
@@ -327,6 +334,11 @@ export async function makePlan({ files, root, config, budget, budgetClasses = {}
   if (includeDiff) response.diffText = selected.map((finding) => `${finding.file}:${finding.startLine}-${finding.endLine} ${finding.action}`).join('\n');
   attachInternal(response, {
     sources: Object.fromEntries(selected.map((finding) => [finding.id, finding._sourceText])),
+    sourceCounts: Object.fromEntries(selected.map((finding) => {
+      const source = finding._sourceText ?? '';
+      const original = files.find((file) => file.path === finding.file)?.text ?? '';
+      return [finding.id, occurrenceCount(original, source)];
+    })),
     required: Object.fromEntries(selected.filter((finding) => finding._required?.length).map((finding) => [finding.id, finding._required])),
     preserveText,
     postHashes: {},
@@ -355,6 +367,7 @@ export async function applyPlan(plan, root) {
   try {
     for (const [file, findings] of byFile) {
       const target = path.join(root, file);
+      const originalStat = await stat(target);
       const original = await readFile(target, 'utf8');
       const lines = original.split('\n');
       const sorted = [...findings].sort((a, b) => b.startLine - a.startLine);
@@ -369,6 +382,9 @@ export async function applyPlan(plan, root) {
       }
       const temp = `${target}.ctxcap-${plan.planId}.tmp`;
       await writeFile(temp, lines.join('\n'), 'utf8');
+      // rename replaces the original inode, so preserve its permission bits on
+      // the replacement instead of inheriting the process umask defaults.
+      await chmod(temp, originalStat.mode & 0o777);
       prepared.push({ file, findings, target, temp, original, text: lines.join('\n') });
     }
     const renamed = [];
@@ -451,6 +467,7 @@ export async function verifyPlan(plan, root) {
       }
     }
   }
+  const sourceGroups = new Map();
   for (const finding of plan.plan) {
     if (driftedFiles.has(finding.file)) {
       missed.push(finding.id);
@@ -462,8 +479,24 @@ export async function verifyPlan(plan, root) {
       continue;
     }
     const sourceText = plan._internal?.sources?.[finding.id] ?? finding.sourceText ?? finding.rationale.split(' (')[0];
-    if (fileText.includes(sourceText)) missed.push(finding.id);
-    else applied.push(finding.id);
+    const originalCount = plan._internal?.sourceCounts?.[finding.id];
+    if (!Number.isInteger(originalCount)) {
+      // Compatibility for plans saved before occurrence counts were recorded.
+      if (fileText.includes(sourceText)) missed.push(finding.id);
+      else applied.push(finding.id);
+      continue;
+    }
+    const key = JSON.stringify([finding.file, sourceText, originalCount]);
+    if (!sourceGroups.has(key)) sourceGroups.set(key, { fileText, sourceText, originalCount, findings: [] });
+    sourceGroups.get(key).findings.push(finding);
+  }
+  for (const group of sourceGroups.values()) {
+    // Count occurrences rather than asking whether the text survives anywhere:
+    // a same-file duplicate is successful when one copy remains as canonical.
+    const removed = Math.max(0, group.originalCount - occurrenceCount(group.fileText, group.sourceText));
+    group.findings.forEach((finding, index) => {
+      (index < removed ? applied : missed).push(finding.id);
+    });
   }
   for (const finding of plan.plan) {
     const fileText = fileTexts.get(finding.file);

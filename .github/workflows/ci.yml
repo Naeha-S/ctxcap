@@ -18,3 +18,14 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node src/index.js --json
+
+  minimum-node:
+    # Keep the declared >=20 engine range honest at its lower bound.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.0.0
+      - run: npm ci
+      - run: node src/index.js --json

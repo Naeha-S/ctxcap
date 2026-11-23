@@ -1,6 +1,5 @@
 # ctxcap
-Optional offline CLI for measuring context-file tokens and finding stale references.
-Run `npx -y ctxcap --json`; it needs no API key, network, telemetry, or configuration.
-`npx -y ctxcap --compare` places the largest context file at a percentile in the Context Budget Index.
-Use `--plan --budget N` only when a ranked cleanup plan is useful; review edits before applying them.
-The MCP server is optional: `npx -y ctxcap-mcp`; counts are approximate.
+Diagnose repository context for coding agents: rank instruction and skill file sizes, find stale references, flag recognizable credentials and risky execution flags, and list configured MCP server names.
+Run `npx -y ctxcap why` for the diagnosis. File counts are approximate; skill use is client-dependent, and live MCP tool-schema costs require runtime data. ctxcap never launches configured MCP servers.
+The CLI also measures budgets, emits JSON/SARIF, and can print a reviewed cleanup plan. The GitHub Action is an optional reporting and enforcement surface.
+Once installed, ctxcap makes no runtime network calls or telemetry. A cold npx invocation may download the package from npm.

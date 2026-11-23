@@ -8,54 +8,81 @@
 [![ci](https://github.com/Naeha-S/ctxcap/actions/workflows/ci.yml/badge.svg)](https://github.com/Naeha-S/ctxcap/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/ctxcap)](LICENSE)
 
-`AGENTS.md`, `CLAUDE.md`, and prompt files are loaded into agent sessions over
-and over, and they only grow. `ctxcap` counts what they cost in tokens, flags
-pull requests that grow them, and finds the references in them that point at
-files and scripts that no longer exist.
-
-It runs offline: no API key, network call, telemetry, or config. Node 20 or
-newer.
+Your coding agent can only follow the context it can see. If that context is
+bloated, stale, or unsafe, useful rules can get buried and the agent can chase
+files and commands that are gone. **`ctxcap why` diagnoses the repository
+context your agent can load:** it ranks measured instruction and skill files,
+names configured MCP servers, and points to broken references and risky content.
 
 ```bash
-npx ctxcap --stale
+npx ctxcap why
 ```
 
 ```text
-TOKENS  DELTA  FILE
-45      0      AGENTS.md
----
-total 45 (0)
-approximate count (gpt-tokenizer@3.0.1)
-stale findings 2 (reclaimable 21 tokens)
-stale-path     AGENTS.md:6   src/auth/session.js
-dead-command   AGENTS.md:7   npm run lint
+ctxcap why — repository context diagnosis
+Largest known repository sources (full-file sizes; active use is client-dependent):
+  1. AGENTS.md — 2,880 tokens [startup]
+     Fix: fix the stale reference at line 18; move task-specific guidance to a skill
+  2. skill: release-helper — 640 tokens [on-demand]
+     Fix: remove obsolete guidance; the skill body loads only when invoked
+
+Configured MCP servers (not launched; live tool-schema cost is unknown):
+  MCP: playwright — cost unknown (stdio, .mcp.json)
+     Fix: disable playwright in .mcp.json if unused; inspect the client's exposed tools for its session cost
+
+Findings: 1
+  AGENTS.md:18 ERROR stale-path — `src/old-auth.js` does not resolve
+     Fix: update or remove the reference
 ```
+
+Counts are approximate. `ctxcap why` never launches configured MCP servers and
+does not pretend to know what a client loaded in a particular session. Once
+installed, ctxcap runs offline: no runtime network calls, telemetry, or API
+key. A cold `npx` run may fetch the package from npm. Node 20 or newer.
+
+The usual CLI, CI gate, and budget planner are still here; diagnosis is the
+reason to start with ctxcap.
 
 ## What it does
 
-- **Measures.** Token counts per file and in total, as text, JSON, or SARIF.
-- **Gates pull requests.** A GitHub Action compares against a committed
-  baseline, comments the delta on the pull request, and fails only when you
-  ask it to.
-- **Finds stale references.** Paths and `npm run` scripts named in a context
-  file that no longer resolve in the repository.
-- **Plans a trim.** A ranked list of edits to get under a budget, with a
-  verify step. This is the newest part; review its diffs before you accept
-  them. See [Trim to a budget](#trim-to-a-budget).
+- **Diagnoses.** `ctxcap why` ranks repository instruction and skill files,
+  names configured MCP servers, and gives a fix for each source or finding.
+- **Finds defects and risky content.** Checks instruction references against
+  repository paths and scripts; flags recognizable credential patterns and
+  explicit permission/sandbox bypass flags. Credential values are redacted.
+- **Measures.** Approximate file token counts as text, JSON, or SARIF.
+- **Warns before compaction.** Claude Code can name the largest known
+  always/startup repository context file; this is not the full session total.
+- **Supports follow-up.** Optional PR reporting and a ranked trim plan help
+  keep the configuration healthy over time. See [Gate pull requests](#gate-pull-requests)
+  and [Trim to a budget](#trim-to-a-budget).
 
-By default it scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`,
-`prompts/**`, `*.prompt`, and `.cursor/rules/**`.
+The security checks are deliberately narrow heuristics, not a full secret scanner
+or a certification that an agent setup is safe. Findings need human review.
+
+By default the token CLI scans `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`,
+`prompts/**`, `*.prompt`, and `.cursor/rules/**`. `ctxcap why` also discovers
+repository skill files such as `.claude/skills/**/SKILL.md`, `.agents/skills/**/SKILL.md`,
+`.cursor/skills/**/SKILL.md`, and `skills/**/SKILL.md`.
 
 ## Quick start
 
-Run it in the repository you want to inspect. Nothing is installed or written:
+Run it in the repository you want to inspect. It does not install into that
+project or write repository files (a cold `npx` run may fetch the package into
+the npm cache):
 
 ```bash
-npx ctxcap              # token table
-npx ctxcap --json       # the same as JSON
-npx ctxcap --stale      # add dead paths and scripts
+npx ctxcap why          # ranked diagnosis, stale/security findings, named MCP servers and skills
+npx ctxcap --json       # token report as JSON
+npx ctxcap --stale      # dead paths, commands, and references only
 npx ctxcap --compare    # this file's percentile in the Context Budget Index
 ```
+
+`why` counts repository context files and skill files in full. It labels skills
+as on-demand, lists MCP server names from `.mcp.json`, `.cursor/mcp.json`,
+`.vscode/mcp.json`, or `.claude/settings.json` without starting them, and
+reports live MCP tool-schema cost as unknown unless the connected client exposes
+that data.
 
 To track growth, commit a baseline. Later runs report the delta against it:
 
@@ -81,7 +108,7 @@ Nothing is installed, and nothing runs at install time.
 
 | Agent | `--agents` | Files | Cost in the context window |
 | --- | --- | --- | --- |
-| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, two hooks in `.claude/settings.json`, `.ctxcap/.gitignore` | 84 tokens per session for the skill's name and description, 323 once the skill loads |
+| Claude Code | `claude` | `.claude/skills/ctxcap/SKILL.md`, three hooks in `.claude/settings.json`, `.ctxcap/.gitignore` | 70 tokens per session for the skill's name and description, 362 once the skill loads |
 | Cursor | `cursor` | `.cursor/rules/ctxcap.mdc` | 140 tokens when a `CLAUDE.md` or `AGENTS.md` is in the conversation |
 | Codex | `codex` | A 2-line block in `AGENTS.md` | 51 tokens per session |
 | Copilot | `copilot` | A 3-line block in `.github/copilot-instructions.md` | 101 tokens per session |
@@ -97,15 +124,18 @@ same measure, plan, and verify steps the skill gives Claude Code for 84. What
 it adds is the same tools in Claude Code and Cursor. To include it, name it:
 `npx ctxcap init --yes --agents claude,mcp`.
 
-The two Claude Code hooks stay quiet unless there is something to say:
+The three Claude Code hooks stay quiet unless there is something to say:
 
 - After an edit to a context file, the agent gets one line with the new count
   and the total. Other edits print nothing.
+- Before compaction, Claude Code gets the largest known always/startup
+  repository context source and its approximate file size. It explicitly does
+  not claim to see the full session, loaded skills, or MCP tool schemas.
 - When the agent stops, you get one line if the total is over the budget in
   `.ctxcap.json`. It never blocks the agent from stopping.
 
-Each hook starts `npx`, which takes about a second once the package is cached.
-That second is added to every edit Claude Code makes.
+Hooks start `npx`; once cached this is usually about a second. The pre-compact
+hook runs only when Claude Code is about to compact, not on every edit.
 
 ### What it runs
 
@@ -117,17 +147,19 @@ itself makes no network calls.
 | Written to | Command | Runs |
 | --- | --- | --- |
 | `.claude/settings.json` | `npx -y ctxcap@1.6.0 hook post-edit` | After every Edit, Write, or MultiEdit in Claude Code |
+| `.claude/settings.json` | `npx -y ctxcap@1.6.0 hook pre-compact` | Before Claude Code compacts context |
 | `.claude/settings.json` | `npx -y ctxcap@1.6.0 hook stop` | Each time Claude Code finishes responding |
-| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.6.0 --json` | When the agent follows the skill |
+| `.claude/skills/ctxcap/SKILL.md` | `npx ctxcap@1.6.0 why` | When the agent follows the skill |
+| | `npx ctxcap@1.6.0 --json` | |
 | | `npx ctxcap@1.6.0 --stale --json` | |
 | | `npx ctxcap@1.6.0 --plan --budget <n>` | |
 | | `npx ctxcap@1.6.0 --plan --budget <n> --apply` | |
 | | `npx ctxcap@1.6.0 --verify <planId>` | |
-| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.6.0 --json` | When Cursor follows the rule |
+| `.cursor/rules/ctxcap.mdc` | `npx ctxcap@1.6.0 why` | When Cursor follows the rule |
 | | `npx ctxcap@1.6.0 --plan --budget <n>` | |
 | | `npx ctxcap@1.6.0 --verify <planId>` | |
-| `AGENTS.md` | `npx ctxcap@1.6.0 --json` | When the agent follows the instruction |
-| `.github/copilot-instructions.md` | `npx ctxcap@1.6.0 --json` | When Copilot follows the instruction |
+| `AGENTS.md` | `npx ctxcap@1.6.0 why` | When the agent follows the instruction |
+| `.github/copilot-instructions.md` | `npx ctxcap@1.6.0 why` | When Copilot follows the instruction |
 | | `npx ctxcap@1.6.0 --plan --budget <n>` | |
 | `.github/workflows/ctxcap.yml` | `actions/checkout@v4` | On every pull request |
 | | `Naeha-S/ctxcap@v1.6.0` | |
@@ -314,9 +346,12 @@ that are over budget.
 The comment and the SARIF upload need a token that can write, which pull
 requests from forks do not get under plain `pull_request`. For forks, use
 `pull_request_target` as shown in
-[`examples/pull-request-target.yml`](examples/pull-request-target.yml). On
-private repositories, code scanning needs GitHub Advanced Security; without it
-the SARIF upload does nothing.
+[`examples/pull-request-target.yml`](examples/pull-request-target.yml). That
+event has a write-capable token: check out the PR into a subdirectory, pass the
+same directory as the action's `path`, and never run PR-controlled scripts or
+install PR dependencies in that job. The example keeps the checkout under
+`pr/`. On private repositories, code scanning needs GitHub Advanced Security;
+without it the SARIF upload does nothing.
 
 ## Find stale references
 
@@ -610,7 +645,7 @@ or newer; earlier versions do not connect.
 so one line is enough:
 
 ```markdown
-- Before editing AGENTS.md or CLAUDE.md, run `npx -y ctxcap --stale --json` and keep the total from growing.
+- Before editing AGENTS.md or CLAUDE.md, run `npx -y ctxcap why` and fix stale references before trimming.
 ```
 
 ## CLI
@@ -621,7 +656,8 @@ so one line is enough:
 | `ctxcap init` | Wire `ctxcap` into the repository's coding agents. See [Wire it up](#wire-it-up) |
 | `ctxcap init --remove` | Undo that |
 | `ctxcap doctor` | Report whether the wiring is complete and current |
-| `ctxcap hook post-edit\|stop` | What the Claude Code hooks run. Not meant to be run by hand |
+| `ctxcap why` | Diagnose ranked repository context, skills, MCP names, stale references, and risky content |
+| `ctxcap hook post-edit\|pre-compact\|stop` | What the Claude Code hooks run. Not meant to be run by hand |
 | `ctxcap roast` | One deterministic line about the file. `--json`, `--stale` |
 
 | Flag | Effect |

@@ -4,7 +4,9 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import packageJson from '../package.json' with { type: 'json' };
+import { createRequire } from 'node:module';
+
+const packageJson = createRequire(import.meta.url)('../package.json');
 
 const SERVER = path.resolve('mcp/server.js');
 

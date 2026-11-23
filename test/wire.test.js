@@ -34,11 +34,12 @@ test('claude: the skill description is short, names three requests, and the comm
 
   // The description is what the agent matches a request against.
   assert.ok(data.description.length < 400, `description is ${data.description.length} characters`);
-  assert.ok(data.description.startsWith('Measure and trim agent context files (CLAUDE.md, AGENTS.md, .cursor/rules). Use before editing a context file, when it has grown past budget, or when a rule has stopped being followed.'));
+  assert.ok(data.description.startsWith('Diagnose repository context costs and stale references. Use when an agent seems to miss repo rules, a context file has grown, or you need to find a broken instruction.'));
   const phrases = data.description.match(/"[^"]+"/g).map((phrase) => phrase.slice(1, -1));
   assert.deepEqual(phrases, SKILL_TRIGGERS);
   assert.equal(phrases.length, 3);
-  assert.ok(phrases.includes('my CLAUDE.md is getting long'));
+  assert.ok(phrases.includes('what is eating my context window'));
+  assert.ok(body.includes(`npx ctxcap@${VERSION} why`));
   // Its cost in every session, which the README states.
   assert.ok(countTokens(raw) < 100, `frontmatter is ${countTokens(raw)} tokens`);
   const readme = await committed('README.md');
@@ -77,6 +78,7 @@ test('claude: hooks merge into settings that already have a user hook, and come 
     matcher: 'Edit|Write|MultiEdit',
     hooks: [{ type: 'command', command: `npx -y ctxcap@${VERSION} hook post-edit`, timeout: 60 }]
   });
+  assert.deepEqual(settings.hooks.PreCompact, [{ hooks: [{ type: 'command', command: `npx -y ctxcap@${VERSION} hook pre-compact`, timeout: 60 }] }]);
   assert.deepEqual(settings.hooks.Stop, [{ hooks: [{ type: 'command', command: `npx -y ctxcap@${VERSION} hook stop`, timeout: 60 }] }]);
 
   // No MCP server unless it is asked for.
@@ -127,6 +129,21 @@ test('hook post-edit: silent until a context file is newer than the stamp', asyn
   // The edited path counts even when the clock cannot tell the two apart.
   const direct = hook(dir, 'post-edit', { tool_name: 'Write', tool_input: { file_path: 'AGENTS.md' } });
   assert.match(JSON.parse(direct.stdout).hookSpecificOutput.additionalContext, /AGENTS\.md is \d+ tokens/);
+});
+
+test('hook pre-compact names the largest known startup source without claiming full session visibility', async () => {
+  const dir = await repo({
+    'AGENTS.md': WORDS.repeat(45),
+    'CLAUDE.md': WORDS.repeat(12),
+    '.mcp.json': JSON.stringify({ mcpServers: { playwright: { command: 'npx', args: ['-y', 'playwright-mcp'] } } })
+  });
+  const result = hook(dir, 'pre-compact', { hook_event_name: 'PreCompact', trigger: 'auto' });
+  assert.equal(result.status, 0, result.stderr);
+  const message = JSON.parse(result.stdout).systemMessage;
+  assert.match(message, /largest known always\/startup repository context file is AGENTS\.md/);
+  assert.match(message, /approximate tokens/);
+  assert.match(message, /MCP tool schemas are not observable/);
+  assert.doesNotMatch(message, /playwright.*tokens/i);
 });
 
 test('hook stop: silent under budget, one message for the user over it, never exit 2', async () => {
@@ -196,7 +213,7 @@ test('cursor: the rule has valid YAML frontmatter that attaches to context files
   assert.equal(typeof data.description, 'string');
   assert.equal(data.alwaysApply, false);
   assert.deepEqual(data.globs.split(','), ['CLAUDE.md', 'AGENTS.md', '**/CLAUDE.md', '**/AGENTS.md']);
-  assert.ok(body.includes(`npx ctxcap@${VERSION} --json`));
+  assert.ok(body.includes(`npx ctxcap@${VERSION} why`));
 
 });
 
@@ -245,7 +262,7 @@ test('codex: an existing AGENTS.md is byte-identical outside the fenced block', 
 
   const block = wired.slice(begin, end).split('\n').slice(1, -1);
   assert.equal(block.length, 2);
-  assert.ok(block[0].includes(`npx ctxcap@${VERSION} --json`));
+  assert.ok(block[0].includes(`npx ctxcap@${VERSION} why`));
 
   cli(dir, 'init', '--remove', '--yes', '--agents', 'codex');
   assert.equal((await tree(dir))['AGENTS.md'], AGENTS);
@@ -260,7 +277,7 @@ test('codex and copilot: missing files are created holding only the block', asyn
     const all = files[file].trimEnd().split('\n');
     assert.deepEqual([all[0], all.at(-1)], ['<!-- ctxcap:begin -->', '<!-- ctxcap:end -->'], file);
     assert.equal(all.length - 2, lines, file);
-    assert.ok(all[1].includes(`npx ctxcap@${VERSION} --json`), file);
+    assert.ok(all[1].includes(`npx ctxcap@${VERSION} why`), file);
   }
   cli(dir, 'init', '--remove', '--yes');
   assert.deepEqual(await tree(dir), {});

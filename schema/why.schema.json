@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Naeha-S/ctxcap/main/schema/why.schema.json",
+  "title": "ctxcap repository context diagnosis",
+  "type": "object",
+  "required": ["schema", "approximate", "tokenizer", "measuredFileTokens", "sources", "mcpServers", "findings", "note"],
+  "properties": {
+    "schema": { "const": "ctxcap/why/v1" },
+    "approximate": { "type": "boolean" },
+    "tokenizer": { "type": "string" },
+    "measuredFileTokens": { "type": "integer", "minimum": 0 },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "kind", "tokens", "reclaimableTokens", "loadClass", "status", "fix"],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "kind": { "enum": ["context-file", "skill", "context-and-skill"] },
+          "tokens": { "type": "integer", "minimum": 0 },
+          "reclaimableTokens": { "type": "integer", "minimum": 0 },
+          "loadClass": { "type": "string" },
+          "status": { "type": "string" },
+          "fix": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "mcpServers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "configPath", "transport", "status", "runtimeTokens", "fix"],
+        "properties": {
+          "name": { "type": "string" },
+          "configPath": { "type": "string" },
+          "transport": { "enum": ["stdio", "http", "unknown"] },
+          "status": { "type": "string" },
+          "runtimeTokens": { "type": ["integer", "null"] },
+          "fix": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "severity", "path", "line", "text", "fix"],
+        "properties": {
+          "rule": { "type": "string" },
+          "severity": { "enum": ["error", "warning"] },
+          "path": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" },
+          "fix": { "type": "string" },
+          "ref": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 },
+          "reclaimableTokens": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "note": { "type": "string" }
+  },
+  "additionalProperties": false
+}

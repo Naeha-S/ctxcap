@@ -1,7 +1,7 @@
 {
   "name": "ctxcap",
   "version": "1.6.0",
-  "description": "Offline token-budget linter for agent context files \u2014 measures CLAUDE.md/AGENTS.md, finds dead references, returns a ranked plan.",
+  "description": "Diagnose repository context for coding agents: rank instruction and skill costs, find stale references, flag risky content, and inventory MCP servers.",
   "type": "module",
   "bin": {
     "ctxcap": "src/index.js",

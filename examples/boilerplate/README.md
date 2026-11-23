@@ -1,8 +1,8 @@
-# Boilerplate: a repository with a context budget
+# Boilerplate: a repository with agent-context diagnostics
 
 A small starter that a new repository can copy, or that a scaffold can generate.
-It has the three files that make the context budget visible from the first
-commit:
+It includes `ctxcap why` so maintainers can diagnose repository instructions
+and stale references from the first commit, plus a budget and pull-request check:
 
 | File | What it does |
 | --- | --- |
@@ -37,7 +37,7 @@ The smallest useful change is one file and one line. Add this to the generated
 `AGENTS.md`, or to the template it comes from:
 
 ```markdown
-- Before editing AGENTS.md or CLAUDE.md, run `npx -y ctxcap --stale --json` and keep the total from growing.
+- Before editing AGENTS.md or CLAUDE.md, run `npx -y ctxcap why` and fix stale references before trimming.
 ```
 
 That line costs about 30 tokens and puts the measurement in front of every
